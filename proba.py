@@ -26,8 +26,8 @@ env.read_env()
 with open("pizza_menu.json", "r") as menu:
         menu_items = json.loads(menu.read())
 
-# client_id = env.str("CLIENT_ID")
-# client_secret = env.str("CLIENT_SECRET")
+client_id = env.str("CLIENT_ID")
+client_secret = env.str("CLIENT_SECRET")
 #
 # data = {
 #         'client_id': client_id,
