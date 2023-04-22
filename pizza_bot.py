@@ -199,15 +199,12 @@ def add_product_to_cart(update, context):
 
 
 def show_cart(update, context):
-    print('11')
     query = update.callback_query
-    print('12')
     tg_id = context.user_data['tg_id']
     access_token = dispatcher.bot_data['access_token']
 
     products_in_cart_params = get_products_from_cart(access_token=access_token,
                                                      cart_name=tg_id)
-    print('13')
     cart_products = [dedent(f'''
         {count + 1}. {product["name"]}
         ЦЕНА ЗА ЕДИНИЦУ: {"%.2f" % (product["unit_price"]["amount"]/100)} {product["unit_price"]["currency"]}
@@ -219,7 +216,6 @@ def show_cart(update, context):
 
     cart_params = get_cart_params(access_token=access_token,
                                   cart_name=tg_id)
-    print('14')
     cart_sum = dedent(f'''
             ИТОГО {cart_params["data"]["meta"]["display_price"]["with_tax"]["formatted"]}
             ''').replace("    ", "")
@@ -232,7 +228,6 @@ def show_cart(update, context):
         [InlineKeyboardButton("Оплатить", callback_data='payment')],
         [InlineKeyboardButton("Главное меню", callback_data='main_menu')]
     ]
-    print('15')
     for product in products_in_cart_params['data']:
         button_name = f'Убрать из корзины {product["name"]}'
         button_id = product['id']
@@ -241,7 +236,6 @@ def show_cart(update, context):
         keyboard.insert(0, button)
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    print('16')
     context.bot.edit_message_text(
         text=products_in_cart,
         chat_id=query.message.chat_id,
