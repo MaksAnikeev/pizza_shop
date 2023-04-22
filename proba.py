@@ -70,11 +70,33 @@ def create_cart(access_token, name):
 # pprint(create_cart(access_token, name))
 
 
-product_id = 'd2e8df81-cf59-4675-94d6-2dd721f295b5'
-quantity = 2
-cart_name = 704859099
-# pprint(add_item_to_cart(access_token, product_id, quantity, cart_name))
-headers = {
-        'Authorization': f'Bearer {access_token}'
-    }
-requests.delete('https://api.moltin.com/v2/carts/704859099', headers=headers)
+# product_id = 'd2e8df81-cf59-4675-94d6-2dd721f295b5'
+# quantity = 2
+# cart_name = 704859099
+# # pprint(add_item_to_cart(access_token, product_id, quantity, cart_name))
+# headers = {
+#         'Authorization': f'Bearer {access_token}'
+#     }
+# requests.delete('https://api.moltin.com/v2/carts/704859099', headers=headers)
+
+def fetch_coordinates(api_yandex_key, address):
+    base_url = "https://geocode-maps.yandex.ru/1.x"
+    response = requests.get(base_url, params={
+        "geocode": address,
+        "apikey": api_yandex_key,
+        "format": "json",
+    })
+    response.raise_for_status()
+    found_places = response.json()['response']['GeoObjectCollection']['featureMember']
+
+    if not found_places:
+        return None
+
+    most_relevant = found_places[0]
+    lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
+    return lon, lat
+
+address = 'Москва, Старый Арбат, 4'
+api_yandex_key = env('API_YANDEX_KEY')
+lon, lat = fetch_coordinates(api_yandex_key, address)
+print(lon, lat)

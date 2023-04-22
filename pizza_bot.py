@@ -82,7 +82,7 @@ def send_product_description(update, context):
 
     keyboard = [[InlineKeyboardButton("1шт", callback_data='1pc'),
                  InlineKeyboardButton("2шт", callback_data='2pc'),
-                 InlineKeyboardButton("4шт", callback_data='3pc')],
+                 InlineKeyboardButton("4шт", callback_data='4pc')],
                 [InlineKeyboardButton("Назад", callback_data='back')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -199,14 +199,15 @@ def add_product_to_cart(update, context):
 
 
 def show_cart(update, context):
+    print('11')
     query = update.callback_query
-
+    print('12')
     tg_id = context.user_data['tg_id']
     access_token = dispatcher.bot_data['access_token']
 
     products_in_cart_params = get_products_from_cart(access_token=access_token,
                                                      cart_name=tg_id)
-
+    print('13')
     cart_products = [dedent(f'''
         {count + 1}. {product["name"]}
         ЦЕНА ЗА ЕДИНИЦУ: {"%.2f" % (product["unit_price"]["amount"]/100)} {product["unit_price"]["currency"]}
@@ -218,6 +219,7 @@ def show_cart(update, context):
 
     cart_params = get_cart_params(access_token=access_token,
                                   cart_name=tg_id)
+    print('14')
     cart_sum = dedent(f'''
             ИТОГО {cart_params["data"]["meta"]["display_price"]["with_tax"]["formatted"]}
             ''').replace("    ", "")
@@ -230,6 +232,7 @@ def show_cart(update, context):
         [InlineKeyboardButton("Оплатить", callback_data='payment')],
         [InlineKeyboardButton("Главное меню", callback_data='main_menu')]
     ]
+    print('15')
     for product in products_in_cart_params['data']:
         button_name = f'Убрать из корзины {product["name"]}'
         button_id = product['id']
@@ -238,7 +241,7 @@ def show_cart(update, context):
         keyboard.insert(0, button)
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-
+    print('16')
     context.bot.edit_message_text(
         text=products_in_cart,
         chat_id=query.message.chat_id,
@@ -302,10 +305,14 @@ def get_email(update, context):
         context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=f'Вы нам прислали {email}\n'
-                 f'В ближайшее время с вами свяжется наш специалист',
+                 f'В ближайшее время с вами свяжется наш специалист\n'
+                 f'Пришлите нам ваш адрес текстом или геолокацию, для определения куда вам доставить пиццу',
             reply_markup=reply_markup
         )
-        return 'CART'
+        query = update.callback_query
+        if query and query.data == 'back_to_cart':
+            return show_cart(update, context)
+        return 'GET_ADDRESS'
     else:
         context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -313,10 +320,35 @@ def get_email(update, context):
             reply_markup=reply_markup
         )
 
+def get_address(update, context):
+    query = update.callback_query
+    if query and query.data == 'back_to_cart':
+        return show_cart(update, context)
+
+    address = update.message.text
+    lon, lat = fetch_coordinates(api_yandex_key, address)
+    keyboard = [[InlineKeyboardButton("Назад к корзине",
+                                      callback_data='back_to_cart')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=f'Ваши координаты:\n'
+                 f'Долгота {lon}\n'
+                 f'Широта {lat}',
+            reply_markup=reply_markup
+        )
+    return 'CART'
+    # else:
+    #     context.bot.send_message(
+    #         chat_id=update.effective_chat.id,
+    #         text='Вы ввели некорректный e-mail, попробуйте еще раз',
+    #         reply_markup=reply_markup
+    #     )
+
 
 def handle_button(update, context):
     query = update.callback_query
-
     if query.data == 'store':
         return send_products_keyboard(update, context)
 
@@ -340,7 +372,6 @@ def handle_button(update, context):
 
 def handle_users_reply(update, context):
     db = get_database_connection()
-
     if update.message:
         user_reply = update.message.text
         chat_id = update.message.chat_id
@@ -353,13 +384,11 @@ def handle_users_reply(update, context):
         user_state = 'START'
     else:
         user_state = db.get(chat_id)
-
     token_expires = dispatcher.bot_data['token_expires']
     if not check_token(token_expires):
         access_token, token_expires = get_token(client_id, client_secret)
         dispatcher.bot_data['access_token'] = access_token
         dispatcher.bot_data['token_expires'] = token_expires
-
     states_functions = {
         'START': start,
         'MAIN_MENU': handle_button,
@@ -368,6 +397,7 @@ def handle_users_reply(update, context):
         'CART': handle_button,
         "ADD_CART": add_product_to_cart,
         'GET_EMAIL': get_email,
+        'GET_ADDRESS': get_address
     }
     state_handler = states_functions[user_state]
     try:
@@ -391,17 +421,48 @@ def get_database_connection():
     return _database
 
 
+def fetch_coordinates(api_yandex_key, address):
+    base_url = "https://geocode-maps.yandex.ru/1.x"
+    response = requests.get(base_url, params={
+        "geocode": address,
+        "apikey": api_yandex_key,
+        "format": "json",
+    })
+    response.raise_for_status()
+    found_places = response.json()['response']['GeoObjectCollection']['featureMember']
+
+    if not found_places:
+        return None
+
+    most_relevant = found_places[0]
+    lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
+    return lon, lat
+
+
+def location(update, context):
+    if update.edited_message:
+        message = update.edited_message
+    else:
+        message = update.message
+    lat = message.location.latitude
+    lon = message.location.longitude
+
+    keyboard = [[InlineKeyboardButton("Назад к корзине",
+                                      callback_data='back_to_cart')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=f'Ваши координаты по геоточке:\n'
+             f'Долгота {lon}\n'
+             f'Широта {lat}',
+        reply_markup=reply_markup
+    )
+    return 'CART'
+
+
 if __name__ == '__main__':
     env = environs.Env()
     env.read_env()
-
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     'price_list_id',
-    #     type=str,
-    #     help='ИД прайс листа в elasticpath',
-    # )
-    # args = parser.parse_args()
 
     token = env.str("TG_BOT_TOKEN")
     updater = Updater(token)
@@ -410,6 +471,7 @@ if __name__ == '__main__':
     client_id = env.str("CLIENT_ID")
     client_secret = env.str("CLIENT_SECRET")
     price_list_id = env.str("PRICE_LIST_ID")
+    api_yandex_key = env('API_YANDEX_KEY')
     access_token, token_expires = get_token(client_id, client_secret)
     dispatcher.bot_data['access_token'] = access_token
     dispatcher.bot_data['token_expires'] = token_expires
@@ -418,6 +480,7 @@ if __name__ == '__main__':
     dispatcher.add_handler(CommandHandler('start', handle_users_reply))
     dispatcher.add_handler(CallbackQueryHandler(handle_users_reply))
     dispatcher.add_handler(MessageHandler(Filters.text, handle_users_reply))
+    dispatcher.add_handler(MessageHandler(Filters.location, location))
     updater.dispatcher.add_handler(CallbackQueryHandler(handle_button))
 
     updater.start_polling()
