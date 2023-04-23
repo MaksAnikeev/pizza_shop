@@ -3,6 +3,7 @@ from telegram import InlineKeyboardButton
 import requests
 import environs
 from pprint import pprint
+from geopy import distance
 
 env = environs.Env()
 env.read_env()
@@ -30,7 +31,7 @@ def get_token(client_id, client_secret):
 
 access_token, token_expires = get_token(client_id, client_secret)
 
-print(access_token)
+# print(access_token)
 
 
 def add_item_to_cart(access_token, product_id, quantity, cart_name):
@@ -99,4 +100,34 @@ def fetch_coordinates(api_yandex_key, address):
 address = 'Москва, Старый Арбат, 4'
 api_yandex_key = env('API_YANDEX_KEY')
 lon, lat = fetch_coordinates(api_yandex_key, address)
-print(lon, lat)
+client_coordinates = (lon, lat)
+
+def get_entries(access_token, slug):
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+    response = requests.get(f'https://api.moltin.com/v2/flows/{slug}/entries', headers=headers)
+    return response.json()['data']
+
+slug = 'pizzeria'
+
+pizzerias_params = get_entries(access_token, slug)
+
+def get_min_distance(client_coordinates, pizzerias_params):
+    distance_to_client = {}
+    for pizzeria in pizzerias_params:
+        pizzeria_longitude = pizzeria['pizzeria_longitude']
+        pizzeria_latitude = pizzeria['pizzeria_latitude']
+        pizzeria_address = (pizzeria_longitude, pizzeria_latitude)
+        client_distance = round(distance.distance(client_coordinates, pizzeria_address).km, 2)
+        pizzeria_full_address = pizzeria['pizzeria_address']
+        distance_to_client[pizzeria_full_address] = client_distance
+    pprint(distance_to_client)
+    min_distance = dict([min(distance_to_client.items(), key=lambda item:item[1])])
+    for key, value in min_distance.items():
+        pizzeria_full_address = key
+        distance_to_client = value
+    return pizzeria_full_address, distance_to_client
+
+pizzeria_full_address, distance_to_client = get_min_distance(client_coordinates, pizzerias_params)
+# print(distance_to_client)

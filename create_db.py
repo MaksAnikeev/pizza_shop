@@ -51,7 +51,7 @@ if __name__ == '__main__':
         url = pizza['product_image']['url']
         # img_id = add_file(access_token, url)
 
-        file_id = img_id
+        # file_id = img_id
         # connect_file_to_product(access_token, file_id, product_id)
 
 
@@ -63,19 +63,21 @@ if __name__ == '__main__':
     #                    description=flow_description,
     #                    slug=flow_slug)
 
-    field_name = 'Longitude'
-    field_slug = 'pizzeria_longitude'
-    field_type = 'float'
-    field_description = 'Долгота'
-    flow_required = False
+    flow_id = '61e8339e-65bf-49fe-9344-eddcd681fdac'
 
-    add_fied_to_flow(access_token,
-                     name=field_name,
-                     slug=field_slug,
-                     field_type=field_type,
-                     description=field_description,
-                     flow_id=flow_id,
-                     required=flow_required)
+    field_name = 'Address'
+    field_slug = 'pizzeria_address'
+    field_type = 'string'
+    field_description = 'Адрес пиццерии'
+    flow_required = True
+
+    # add_fied_to_flow(access_token,
+    #                  name=field_name,
+    #                  slug=field_slug,
+    #                  field_type=field_type,
+    #                  description=field_description,
+    #                  flow_id=flow_id,
+    #                  required=flow_required)
 
     # url = 'https://dvmn.org/media/filer_public/90/90/9090ecbf-249f-42c7-8635-a96985268b88/addresses.json'
     # response = requests.get(url)
@@ -91,10 +93,10 @@ if __name__ == '__main__':
         flow_slug = 'pizzeria'
         longitude = address['coordinates']['lon'].replace(' ', '')
         latitude = address['coordinates']['lat'].replace(' ', '')
-        pprint(fill_fied(
+        fill_fied(
             access_token,
             address=pizzeria_address,
             flow_slug=flow_slug,
             alias=alias,
-            longitude=float(longitude),
-            latitude=float(latitude)))
+            longitude=longitude,
+            latitude=latitude)

@@ -4,6 +4,7 @@ from textwrap import dedent
 import environs
 import redis
 import requests
+from geopy import distance
 from datetime import datetime
 from more_itertools import chunked
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
@@ -13,7 +14,8 @@ from telegram.ext import (CallbackQueryHandler, CommandHandler, Filters,
 from moltin import (get_token, get_product_params,
                     get_products_prices, get_product_files, create_client,
                     get_products_names, get_products_params, add_item_to_cart,
-                    get_products_from_cart, get_cart_params, delete_item_from_cart)
+                    get_products_from_cart, get_cart_params, delete_item_from_cart,
+                    get_entries)
 
 
 _database = None
@@ -319,26 +321,52 @@ def get_address(update, context):
     if query and query.data == 'back_to_cart':
         return show_cart(update, context)
 
+    access_token = dispatcher.bot_data['access_token']
     address = update.message.text
-    lon, lat = fetch_coordinates(api_yandex_key, address)
-    keyboard = [[InlineKeyboardButton("Назад к корзине",
-                                      callback_data='back_to_cart')]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    try:
+        try:
+            message = update.message
+            lat = message.location.latitude
+            lon = message.location.longitude
+            client_coordinates = (lon, lat)
+        except:
+            lon, lat = fetch_coordinates(api_yandex_key, address)
+            client_coordinates = (lon, lat)
 
-    context.bot.send_message(
+        keyboard = [[InlineKeyboardButton("Назад к корзине",
+                                          callback_data='back_to_cart')]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        slug = 'pizzeria'
+        pizzerias_params = get_entries(access_token, slug)
+        pizzerias_address, distance_to_client = get_min_distance(client_coordinates, pizzerias_params)
+        if distance_to_client <= 0.5:
+            message = f'Можете забрать пиццу из нашей пицерии неподалеку. Она всего в ' \
+                      f'{distance_to_client*1000}м от вас, адрес {pizzerias_address} \n\n' \
+                      f'А можем и бесплатно доставить, нам не сложно'
+        elif distance_to_client <= 5:
+            message = f'Ваша пицца будет готовится по адресу: {pizzerias_address}. \n' \
+                      f'Придется к вам ехать на самокате, доставка будет 100р'
+        elif distance_to_client <= 20:
+            message = f'Ваша пицца будет готовится по адресу: {pizzerias_address}. \n' \
+                      f'Придется к вам ехать на машине, доставка будет 300р'
+        elif distance_to_client > 20:
+            message = f'Ваша пицца будет готовится по адресу: {pizzerias_address}. \n' \
+                      f'Вы находитесь на расстоянии {distance_to_client}км. \n Так далеко мы не возим.' \
+                      f'Можете забрать самовывозом.'
+
+        context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=message,
+                reply_markup=reply_markup
+            )
+        # return 'CART'
+    except:
+        context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=f'Ваши координаты:\n'
-                 f'Долгота {lon}\n'
-                 f'Широта {lat}',
-            reply_markup=reply_markup
+            text='Вы ввели некорректный адрес, попробуйте ввести заново или прислать геопозицию',
         )
-    return 'CART'
-    # else:
-    #     context.bot.send_message(
-    #         chat_id=update.effective_chat.id,
-    #         text='Вы ввели некорректный e-mail, попробуйте еще раз',
-    #         reply_markup=reply_markup
-    #     )
+
 
 
 def handle_button(update, context):
@@ -433,25 +461,20 @@ def fetch_coordinates(api_yandex_key, address):
     return lon, lat
 
 
-def location(update, context):
-    if update.edited_message:
-        message = update.edited_message
-    else:
-        message = update.message
-    lat = message.location.latitude
-    lon = message.location.longitude
-
-    keyboard = [[InlineKeyboardButton("Назад к корзине",
-                                      callback_data='back_to_cart')]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=f'Ваши координаты по геоточке:\n'
-             f'Долгота {lon}\n'
-             f'Широта {lat}',
-        reply_markup=reply_markup
-    )
-    return 'CART'
+def get_min_distance(client_coordinates, pizzerias_params):
+    distance_to_client = {}
+    for pizzeria in pizzerias_params:
+        pizzeria_longitude = pizzeria['pizzeria_longitude']
+        pizzeria_latitude = pizzeria['pizzeria_latitude']
+        pizzeria_address = (pizzeria_longitude, pizzeria_latitude)
+        client_distance = round(distance.distance(client_coordinates, pizzeria_address).km, 2)
+        pizzeria_full_address = pizzeria['pizzeria_address']
+        distance_to_client[pizzeria_full_address] = client_distance
+    min_distance = dict([min(distance_to_client.items(), key=lambda item:item[1])])
+    for key, value in min_distance.items():
+        pizzeria_full_address = key
+        distance_to_client = value
+    return pizzeria_full_address, distance_to_client
 
 
 if __name__ == '__main__':
@@ -474,7 +497,7 @@ if __name__ == '__main__':
     dispatcher.add_handler(CommandHandler('start', handle_users_reply))
     dispatcher.add_handler(CallbackQueryHandler(handle_users_reply))
     dispatcher.add_handler(MessageHandler(Filters.text, handle_users_reply))
-    dispatcher.add_handler(MessageHandler(Filters.location, location))
+    dispatcher.add_handler(MessageHandler(Filters.location, get_address))
     updater.dispatcher.add_handler(CallbackQueryHandler(handle_button))
 
     updater.start_polling()

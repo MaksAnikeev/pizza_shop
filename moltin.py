@@ -352,3 +352,14 @@ def fill_fied(access_token, address, flow_slug,
     response = requests.post(f'https://api.moltin.com/v2/flows/{flow_slug}/entries', headers=headers, json=json_data)
     response.raise_for_status()
     return response.json()
+
+
+def get_entries(access_token, slug):
+    """
+   Получить объекты модели из магазина
+    """
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+    response = requests.get(f'https://api.moltin.com/v2/flows/{slug}/entries', headers=headers)
+    return response.json()['data']

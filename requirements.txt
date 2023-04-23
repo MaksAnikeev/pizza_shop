@@ -3,3 +3,4 @@ environs==9.5.0
 redis==3.2.1
 more-itertools==8.14.0
 requests==2.27.1
+geopy==2.3.0
