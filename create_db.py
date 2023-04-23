@@ -4,25 +4,19 @@ import json
 import environs
 
 from moltin import add_product, add_price_to_product, add_file, connect_file_to_product,\
-    create_flow, add_fied_to_flow, fill_fied, get_token
+    create_flow, add_fied_to_flow, fill_fied, get_token, get_entries, fill_fieds
 
 if __name__ == '__main__':
     env = environs.Env()
     env.read_env()
 
-    # url = 'https://dvmn.org/media/filer_public/90/90/9090ecbf-249f-42c7-8635-a96985268b88/addresses.json'
-    # response = requests.get(url)
-    # with open("pizza_address.json", 'w', encoding='utf8') as json_file:
-    #     json.dump(response.json(), json_file, ensure_ascii=False)
-
-    with open("pizza_address.json", "r") as address:
-        adresses = json.loads(address.read())
-
+    # Получает файл с описанием продуктов из интернета
     # url2 = 'https://dvmn.org/media/filer_public/a2/5a/a25a7cbd-541c-4caf-9bf9-70dcdf4a592e/menu.json'
     # response = requests.get(url2)
     # with open("pizza_menu.json", 'w', encoding='utf8') as json_file:
     #     json.dump(response.json(), json_file, ensure_ascii=False)
 
+    # Создаем продукты/пиццы из джейсон файла и присваиваем каждому продукту цену и картинку
     with open("pizza_menu.json", "r") as menu:
         menu_items = json.loads(menu.read())
 
@@ -54,21 +48,26 @@ if __name__ == '__main__':
         # file_id = img_id
         # connect_file_to_product(access_token, file_id, product_id)
 
-
-    flow_name = 'Pizzeria'
-    flow_slug = 'pizzeria'
-    flow_description = 'Адреса пиццерий'
+    # Создаем модель "Адрес клиента"
+    # flow_name = 'Customer Address'
+    # flow_slug = 'customer_address'
+    # flow_description = 'Адреса клиента'
     # flow_id = create_flow(access_token,
     #                    name=flow_name,
     #                    description=flow_description,
     #                    slug=flow_slug)
-
+    #
+    # print(flow_id)
+    # ид пицеррии
     flow_id = '61e8339e-65bf-49fe-9344-eddcd681fdac'
+    # ид адрес клиента
+    # flow_id = '0bb5f589-bd01-479e-9c8d-2bfe4e2b2380'
 
-    field_name = 'Address'
-    field_slug = 'pizzeria_address'
-    field_type = 'string'
-    field_description = 'Адрес пиццерии'
+    # Создаем поля в модели пицерий
+    field_name = 'Сourier'
+    field_slug = 'telegram_id'
+    field_type = 'integer'
+    field_description = 'телеграм ид курьера'
     flow_required = True
 
     # add_fied_to_flow(access_token,
@@ -79,24 +78,37 @@ if __name__ == '__main__':
     #                  flow_id=flow_id,
     #                  required=flow_required)
 
+    # Скачиваем по ссылке файл с адресами пиццерий
     # url = 'https://dvmn.org/media/filer_public/90/90/9090ecbf-249f-42c7-8635-a96985268b88/addresses.json'
     # response = requests.get(url)
     # with open("pizza_address.json", 'w', encoding='utf8') as json_file:
     #     json.dump(response.json(), json_file, ensure_ascii=False)
 
+    # Заполняем созданную модель пицерий адресами пицерий с координатами
     with open("pizza_address.json", "r") as address:
         adresses = json.loads(address.read())
 
-    for address in adresses:
-        pizzeria_address = address['address']['full']
-        alias = address['alias']
-        flow_slug = 'pizzeria'
-        longitude = address['coordinates']['lon'].replace(' ', '')
-        latitude = address['coordinates']['lat'].replace(' ', '')
-        fill_fied(
-            access_token,
-            address=pizzeria_address,
-            flow_slug=flow_slug,
-            alias=alias,
-            longitude=longitude,
-            latitude=latitude)
+    # for address in adresses:
+    #     pizzeria_address = address['address']['full']
+    #     alias = address['alias']
+    #     flow_slug = 'pizzeria'
+    #     longitude = address['coordinates']['lon'].replace(' ', '')
+    #     latitude = address['coordinates']['lat'].replace(' ', '')
+    #     fill_fieds(
+    #         access_token,
+    #         address=pizzeria_address,
+    #         flow_slug=flow_slug,
+    #         alias=alias,
+    #         longitude=longitude,
+    #         latitude=latitude)
+
+    # Обновляем поле курьера в модели пицерии, заполняем телеграмм ид
+    slug = 'pizzeria'
+    pizzerias = get_entries(access_token, slug)
+    fied_slug = 'telegram_id'
+    flow_slug = 'pizzeria'
+    field_value = 704859099
+
+    # for pizzeria in pizzerias:
+    #     entry_id = pizzeria['id']
+    #     fill_fied(access_token, fied_slug, field_value, flow_slug, entry_id)

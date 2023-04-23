@@ -5,6 +5,12 @@ import environs
 from pprint import pprint
 from geopy import distance
 
+from moltin import (get_token, get_product_params,
+                    get_products_prices, get_product_files, create_client,
+                    get_products_names, get_products_params, add_item_to_cart,
+                    get_products_from_cart, get_cart_params, delete_item_from_cart,
+                    get_entries)
+
 env = environs.Env()
 env.read_env()
 
@@ -97,37 +103,37 @@ def fetch_coordinates(api_yandex_key, address):
     lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
     return lon, lat
 
-address = 'Москва, Старый Арбат, 4'
-api_yandex_key = env('API_YANDEX_KEY')
-lon, lat = fetch_coordinates(api_yandex_key, address)
-client_coordinates = (lon, lat)
+# address = 'Москва, Старый Арбат, 4'
+# api_yandex_key = env('API_YANDEX_KEY')
+# lon, lat = fetch_coordinates(api_yandex_key, address)
+# client_coordinates = (lon, lat)
 
-def get_entries(access_token, slug):
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-    }
-    response = requests.get(f'https://api.moltin.com/v2/flows/{slug}/entries', headers=headers)
-    return response.json()['data']
+# def get_entries(access_token, slug):
+#     headers = {
+#         'Authorization': f'Bearer {access_token}',
+#     }
+#     response = requests.get(f'https://api.moltin.com/v2/flows/{slug}/entries', headers=headers)
+#     return response.json()['data']
+#
+# slug = 'pizzeria'
+#
+# pizzerias_params = get_entries(access_token, slug)
 
-slug = 'pizzeria'
-
-pizzerias_params = get_entries(access_token, slug)
-
-def get_min_distance(client_coordinates, pizzerias_params):
-    distance_to_client = {}
-    for pizzeria in pizzerias_params:
-        pizzeria_longitude = pizzeria['pizzeria_longitude']
-        pizzeria_latitude = pizzeria['pizzeria_latitude']
-        pizzeria_address = (pizzeria_longitude, pizzeria_latitude)
-        client_distance = round(distance.distance(client_coordinates, pizzeria_address).km, 2)
-        pizzeria_full_address = pizzeria['pizzeria_address']
-        distance_to_client[pizzeria_full_address] = client_distance
-    pprint(distance_to_client)
-    min_distance = dict([min(distance_to_client.items(), key=lambda item:item[1])])
-    for key, value in min_distance.items():
-        pizzeria_full_address = key
-        distance_to_client = value
-    return pizzeria_full_address, distance_to_client
-
-pizzeria_full_address, distance_to_client = get_min_distance(client_coordinates, pizzerias_params)
+# def get_min_distance(client_coordinates, pizzerias_params):
+#     distance_to_client = {}
+#     for pizzeria in pizzerias_params:
+#         pizzeria_longitude = pizzeria['pizzeria_longitude']
+#         pizzeria_latitude = pizzeria['pizzeria_latitude']
+#         pizzeria_address = (pizzeria_longitude, pizzeria_latitude)
+#         client_distance = round(distance.distance(client_coordinates, pizzeria_address).km, 2)
+#         pizzeria_full_address = pizzeria['pizzeria_address']
+#         distance_to_client[pizzeria_full_address] = client_distance
+#     pprint(distance_to_client)
+#     min_distance = dict([min(distance_to_client.items(), key=lambda item:item[1])])
+#     for key, value in min_distance.items():
+#         pizzeria_full_address = key
+#         distance_to_client = value
+#     return pizzeria_full_address, distance_to_client
+#
+# pizzeria_full_address, distance_to_client = get_min_distance(client_coordinates, pizzerias_params)
 # print(distance_to_client)

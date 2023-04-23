@@ -1,6 +1,7 @@
 import requests
 from telegram import InlineKeyboardButton
 import requests
+from pprint import pprint
 
 
 def get_token(client_id, client_secret):
@@ -328,7 +329,7 @@ def add_fied_to_flow(access_token, name, slug, field_type, description, flow_id,
     return response.json()
 
 
-def fill_fied(access_token, address, flow_slug,
+def fill_fieds(access_token, address, flow_slug,
               alias=None,
               longitude=None,
               latitude=None):
@@ -353,6 +354,27 @@ def fill_fied(access_token, address, flow_slug,
     response.raise_for_status()
     return response.json()
 
+
+def fill_fied(access_token, fied_slug, field_value, flow_slug, entry_id):
+    """
+    Обновить поле в модели
+    """
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json',
+    }
+    json_data = {
+        'data': {
+            'id': entry_id,
+            'type': 'entry',
+            f'{fied_slug}': field_value,
+            },
+        }
+
+    response = requests.put(f'https://api.moltin.com/v2/flows/{flow_slug}/entries/{entry_id}', headers=headers, json=json_data)
+    pprint(response.json())
+    response.raise_for_status()
+    return response.json()
 
 def get_entries(access_token, slug):
     """
