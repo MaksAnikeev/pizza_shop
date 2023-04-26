@@ -4,7 +4,7 @@ import json
 import environs
 
 from moltin import add_product, add_price_to_product, add_file, connect_file_to_product,\
-    create_flow, add_fied_to_flow, fill_fied, get_token, get_entries, fill_fieds
+    create_flow, add_fied_to_flow, fill_fied, get_token, get_entries, fill_pizzeria_fieds
 
 if __name__ == '__main__':
     env = environs.Env()
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     #     flow_slug = 'pizzeria'
     #     longitude = address['coordinates']['lon'].replace(' ', '')
     #     latitude = address['coordinates']['lat'].replace(' ', '')
-    #     fill_fieds(
+    #     fill_pizzeria_fieds(
     #         access_token,
     #         address=pizzeria_address,
     #         flow_slug=flow_slug,

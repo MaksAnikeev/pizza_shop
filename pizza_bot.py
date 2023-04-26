@@ -10,13 +10,12 @@ from more_itertools import chunked
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import (CallbackQueryHandler, CommandHandler, Filters,
                           MessageHandler, Updater)
-
 from moltin import (get_token, get_product_params,
                     get_products_prices, get_product_files, create_client,
                     get_products_names, get_products_params, add_item_to_cart,
                     get_products_from_cart, get_cart_params, delete_item_from_cart,
-                    get_entries)
-
+                    get_entries, fill_fieds, get_entrie)
+from pprint import pprint
 
 _database = None
 
@@ -292,12 +291,13 @@ def get_email(update, context):
     reply_markup = InlineKeyboardMarkup(keyboard)
     user_fullname = str(update.message.from_user['first_name']) + ' ' + str(
         update.message.from_user['last_name'])
+
     response = create_client(
         access_token=access_token,
         client_name=user_fullname,
         email=email
     )
-    if response.ok:
+    if response.ok or response.json()['errors'][0]['title'] == 'Duplicate email':
         context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=f'Вы нам прислали {email}\n'
@@ -309,6 +309,7 @@ def get_email(update, context):
         if query and query.data == 'back_to_cart':
             return show_cart(update, context)
         return 'GET_ADDRESS'
+
     else:
         context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -316,13 +317,15 @@ def get_email(update, context):
             reply_markup=reply_markup
         )
 
+
 def get_address(update, context):
     query = update.callback_query
-    if query and query.data == 'back_to_cart':
-        return show_cart(update, context)
+    if query:
+        return handle_button(update, context)
 
     access_token = dispatcher.bot_data['access_token']
     address = update.message.text
+    context.user_data['client_address'] = address
     try:
         try:
             message = update.message
@@ -333,25 +336,44 @@ def get_address(update, context):
             lon, lat = fetch_coordinates(api_yandex_key, address)
             client_coordinates = (lon, lat)
 
-        keyboard = [[InlineKeyboardButton("Назад к корзине",
+        keyboard = [
+            [InlineKeyboardButton("Доставка", callback_data='delivery'),
+             InlineKeyboardButton("Самовывоз", callback_data='pickup')],
+            [InlineKeyboardButton("Назад к корзине",
                                           callback_data='back_to_cart')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
+        flow_slug = 'customer_address'
+        first_field = 'client_id'
+        first_value = context.user_data['tg_id']
+        second_field = 'client_longitude'
+        second_value = lon
+        third_field = 'client_latitude'
+        third_value = lat
+        entry_client_id = fill_fieds(access_token, flow_slug,
+                   first_field, first_value,
+                   second_field, second_value,
+                   third_field, third_value, )
+        context.user_data['entry_client_id'] = entry_client_id
+
         slug = 'pizzeria'
         pizzerias_params = get_entries(access_token, slug)
-        pizzerias_address, distance_to_client = get_min_distance(client_coordinates, pizzerias_params)
+        pizzeria_address, pizzeria_id, distance_to_client = get_min_distance(client_coordinates, pizzerias_params)
+        context.user_data['pizzeria_address'] = pizzeria_address
+        context.user_data['pizzeria_id'] = pizzeria_id
+
         if distance_to_client <= 0.5:
             message = f'Можете забрать пиццу из нашей пицерии неподалеку. Она всего в ' \
-                      f'{distance_to_client*1000}м от вас, адрес {pizzerias_address} \n\n' \
+                      f'{distance_to_client*1000}м от вас, адрес {pizzeria_address} \n\n' \
                       f'А можем и бесплатно доставить, нам не сложно'
         elif distance_to_client <= 5:
-            message = f'Ваша пицца будет готовится по адресу: {pizzerias_address}. \n' \
+            message = f'Ваша пицца будет готовится по адресу: {pizzeria_address}. \n' \
                       f'Придется к вам ехать на самокате, доставка будет 100р'
         elif distance_to_client <= 20:
-            message = f'Ваша пицца будет готовится по адресу: {pizzerias_address}. \n' \
+            message = f'Ваша пицца будет готовится по адресу: {pizzeria_address}. \n' \
                       f'Придется к вам ехать на машине, доставка будет 300р'
         elif distance_to_client > 20:
-            message = f'Ваша пицца будет готовится по адресу: {pizzerias_address}. \n' \
+            message = f'Ваша пицца будет готовится по адресу: {pizzeria_address}. \n' \
                       f'Вы находитесь на расстоянии {distance_to_client}км. \n Так далеко мы не возим.' \
                       f'Можете забрать самовывозом.'
 
@@ -368,6 +390,61 @@ def get_address(update, context):
         )
 
 
+def send_pickup_message(update, context):
+    keyboard = [[InlineKeyboardButton("Назад к корзине",
+                              callback_data='back_to_cart')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    pizzeria_address = context.user_data['pizzeria_address']
+    message = f'Ваша пицца будет готова через 20 минут.\n' \
+              f'Вы можете забрать ее по адресу {pizzeria_address} \n'
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=message,
+        reply_markup=reply_markup
+    )
+    return 'CART'
+
+
+def send_delivery_message(update, context):
+    pizzeria_id = context.user_data['pizzeria_id']
+    entry_client_id = context.user_data['entry_client_id']
+    pizzeria_address = context.user_data['pizzeria_address']
+    access_token = dispatcher.bot_data['access_token']
+    client_address = context.user_data['client_address']
+
+    slug = 'pizzeria'
+    id = pizzeria_id
+    courier_tg_id = get_entrie(access_token, slug, id)['data']['telegram_id']
+
+    slug = 'customer_address'
+    id = entry_client_id
+    client_params = get_entrie(access_token, slug, id)
+    client_longitude = client_params['data']['client_longitude']
+    client_latitude = client_params['data']['client_latitude']
+
+    context.bot.send_message(
+        chat_id=courier_tg_id,
+        text=f'Аддрес клиента: {client_address}',
+        )
+
+    context.bot.send_location(
+        chat_id=courier_tg_id,
+        latitude=client_latitude,
+        longitude=client_longitude)
+
+    keyboard = [[InlineKeyboardButton("Назад к корзине",
+                              callback_data='back_to_cart')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    message = f'Ваша пицца готовится по адресу {pizzeria_address}\n' \
+              f'Курьер привезет ваш заказ через 60 минут \n'
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=message,
+        reply_markup=reply_markup
+    )
+    return 'CART'
+
 
 def handle_button(update, context):
     query = update.callback_query
@@ -382,6 +459,12 @@ def handle_button(update, context):
 
     elif query.data == 'back_to_cart':
         return show_cart(update, context)
+
+    elif query.data == 'pickup':
+        return send_pickup_message(update, context)
+
+    elif query.data == 'delivery':
+        return send_delivery_message(update, context)
 
     elif 'delete' in query.data:
         product_id = query.data.replace('delete ', '')
@@ -402,6 +485,7 @@ def handle_users_reply(update, context):
         chat_id = update.callback_query.message.chat_id
     else:
         return
+
     if user_reply == '/start':
         user_state = 'START'
     else:
@@ -460,21 +544,26 @@ def fetch_coordinates(api_yandex_key, address):
     lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
     return lon, lat
 
+def get_user_dictance(user):
+    return user['distance']
+
 
 def get_min_distance(client_coordinates, pizzerias_params):
-    distance_to_client = {}
+    distance_to_client = []
     for pizzeria in pizzerias_params:
         pizzeria_longitude = pizzeria['pizzeria_longitude']
         pizzeria_latitude = pizzeria['pizzeria_latitude']
         pizzeria_address = (pizzeria_longitude, pizzeria_latitude)
         client_distance = round(distance.distance(client_coordinates, pizzeria_address).km, 2)
-        pizzeria_full_address = pizzeria['pizzeria_address']
-        distance_to_client[pizzeria_full_address] = client_distance
-    min_distance = dict([min(distance_to_client.items(), key=lambda item:item[1])])
-    for key, value in min_distance.items():
-        pizzeria_full_address = key
-        distance_to_client = value
-    return pizzeria_full_address, distance_to_client
+        client_params = {'pizzeria_address': pizzeria['pizzeria_address'],
+                         'distance': client_distance,
+                         'pizzeria_id': pizzeria['id']}
+        distance_to_client.append(client_params)
+    distance_params = min(distance_to_client, key=get_user_dictance)
+    pizzeria_full_address = distance_params['pizzeria_address']
+    distance_to_client = distance_params['distance']
+    pizzeria_id = distance_params['pizzeria_id']
+    return pizzeria_full_address, pizzeria_id, distance_to_client
 
 
 if __name__ == '__main__':

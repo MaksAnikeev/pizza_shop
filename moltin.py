@@ -329,7 +329,7 @@ def add_fied_to_flow(access_token, name, slug, field_type, description, flow_id,
     return response.json()
 
 
-def fill_fieds(access_token, address, flow_slug,
+def fill_pizzeria_fieds(access_token, address, flow_slug,
               alias=None,
               longitude=None,
               latitude=None):
@@ -353,6 +353,32 @@ def fill_fieds(access_token, address, flow_slug,
     response = requests.post(f'https://api.moltin.com/v2/flows/{flow_slug}/entries', headers=headers, json=json_data)
     response.raise_for_status()
     return response.json()
+
+
+def fill_fieds(access_token, flow_slug,
+               first_field, first_value,
+               second_field, second_value,
+               third_field, third_value,):
+    """
+    Заполнить поля в модели
+    """
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json',
+    }
+    json_data = {
+        'data': {
+            'type': 'entry',
+            f'{first_field}': first_value,
+            f'{second_field}': second_value,
+            f'{third_field}': third_value,
+            },
+        }
+
+    response = requests.post(f'https://api.moltin.com/v2/flows/{flow_slug}/entries', headers=headers, json=json_data)
+    response.raise_for_status()
+    entry_id = response.json()['data']['id']
+    return entry_id
 
 
 def fill_fied(access_token, fied_slug, field_value, flow_slug, entry_id):
@@ -385,3 +411,15 @@ def get_entries(access_token, slug):
     }
     response = requests.get(f'https://api.moltin.com/v2/flows/{slug}/entries', headers=headers)
     return response.json()['data']
+
+
+def get_entrie(access_token, slug, id):
+    """
+       Получить один объект модели из магазина
+    """
+    headers = {
+            'Authorization': f'Bearer {access_token}',
+    }
+    response = requests.get(f'https://api.moltin.com/v2/flows/{slug}/entries/{id}', headers=headers)
+    response.raise_for_status()
+    return response.json()
