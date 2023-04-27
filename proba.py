@@ -202,12 +202,23 @@ third_value = 35.977373
 #     updater.start_polling()
 #     updater.idle()
 
+
+def start(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                         text='Начали')
+    return timer(update, context)
+
+
 def callback_alarm(context):
     job = context.job
     context.bot.send_message(chat_id=job.context, text='BEEP')
 
 def timer(update, context):
     due = 6
+    context.bot.delete_message(
+        chat_id=update.message.chat_id,
+        message_id=update.message.message_id+1
+    )
     context.bot.send_message(chat_id=update.effective_chat.id,
                          text='Setting a timer for 1 minute!')
     context.job_queue.run_once(callback_alarm, due, context=update.effective_chat.id)
@@ -221,7 +232,7 @@ if __name__ == '__main__':
     updater = Updater(token)
     dispatcher = updater.dispatcher
 
-    dispatcher.add_handler(CommandHandler('timer', timer))
+    dispatcher.add_handler(CommandHandler('start', start))
 
     updater.start_polling()
     updater.idle()

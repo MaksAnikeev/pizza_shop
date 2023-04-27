@@ -4,6 +4,7 @@ from textwrap import dedent
 import environs
 import redis
 import requests
+import time
 from geopy import distance
 from datetime import datetime
 from more_itertools import chunked
@@ -377,12 +378,13 @@ def get_address(update, context):
                       f'Вы находитесь на расстоянии {distance_to_client}км. \n Так далеко мы не возим.' \
                       f'Можете забрать самовывозом.'
 
-        context.bot.send_message(
+        delivery_massage = context.bot.send_message(
                 chat_id=update.effective_chat.id,
                 text=message,
                 reply_markup=reply_markup
             )
-        # return 'CART'
+        context.user_data['delivery_massage'] = delivery_massage.message_id
+        return 'CART'
     except:
         context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -406,44 +408,30 @@ def send_pickup_message(update, context):
 
 
 def send_delivery_message(update, context):
-    pizzeria_id = context.user_data['pizzeria_id']
     entry_client_id = context.user_data['entry_client_id']
     pizzeria_address = context.user_data['pizzeria_address']
     access_token = dispatcher.bot_data['access_token']
-    client_address = context.user_data['client_address']
-
-    slug = 'pizzeria'
-    id = pizzeria_id
-    courier_tg_id = get_entrie(access_token, slug, id)['data']['telegram_id']
 
     slug = 'customer_address'
     id = entry_client_id
     client_params = get_entrie(access_token, slug, id)
-    client_longitude = client_params['data']['client_longitude']
-    client_latitude = client_params['data']['client_latitude']
-
-    context.bot.send_message(
-        chat_id=courier_tg_id,
-        text=f'Аддрес клиента: {client_address}',
-        )
-
-    context.bot.send_location(
-        chat_id=courier_tg_id,
-        latitude=client_latitude,
-        longitude=client_longitude)
-
-    keyboard = [[InlineKeyboardButton("Назад к корзине",
-                              callback_data='back_to_cart')]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    context.user_data['client_longitude'] = client_params['data']['client_longitude']
+    context.user_data['client_latitude'] = client_params['data']['client_latitude']
 
     message = f'Ваша пицца готовится по адресу {pizzeria_address}\n' \
               f'Курьер привезет ваш заказ через 60 минут \n'
-    context.bot.send_message(
+    ready_message = context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=message,
-        reply_markup=reply_markup
     )
-    return 'CART'
+    context.user_data['message_id'] = ready_message.message_id
+
+    context.bot.delete_message(
+        chat_id=update.effective_chat.id,
+        message_id=context.user_data['delivery_massage']
+    )
+
+    return one_hour_timer(update, context)
 
 
 def handle_button(update, context):
@@ -473,6 +461,12 @@ def handle_button(update, context):
 
     elif 'payment' in query.data:
         return ask_email(update, context)
+
+    elif context.user_data['timer_message_id']:
+        context.bot.delete_message(
+            chat_id=update.effective_chat.id,
+            message_id=context.user_data['timer_message_id']
+        )
 
 
 def handle_users_reply(update, context):
@@ -564,6 +558,56 @@ def get_min_distance(client_coordinates, pizzerias_params):
     distance_to_client = distance_params['distance']
     pizzeria_id = distance_params['pizzeria_id']
     return pizzeria_full_address, pizzeria_id, distance_to_client
+
+
+def send_alarm_clock_message(context):
+    job = context.job
+    alarm_clock_message = 'Приятного аппетита! Надеемся что пицца к вам пришла вовремя ' \
+                          'и вы уже наслаждаетесь ее вкусом! \n\n' \
+                          'Если это вдруг не так, то свяжитесь с нами по этому телефону +7 978 656 44 55' \
+                          'и мы вам вернем деньги.'
+    keyboard = [[InlineKeyboardButton("Назад к корзине",
+                                      callback_data='back_to_cart')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    context.bot.send_message(
+        chat_id=job.context,
+        text=alarm_clock_message,
+        reply_markup=reply_markup)
+    return 'CART'
+
+
+def one_hour_timer(update, context):
+    time.sleep(10)
+    due = 20
+    keyboard = [[InlineKeyboardButton("Назад к корзине",
+                                      callback_data='back_to_cart')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    context.bot.delete_message(
+        chat_id=update.effective_chat.id,
+        message_id=context.user_data['message_id']
+    )
+
+    id = context.user_data['pizzeria_id']
+    slug = 'pizzeria'
+    courier_tg_id = get_entrie(access_token, slug, id)['data']['telegram_id']
+    client_address = context.user_data['client_address']
+    context.bot.send_message(
+        chat_id=courier_tg_id,
+        text=f'Аддрес клиента: {client_address}',
+    )
+    context.bot.send_location(
+        chat_id=courier_tg_id,
+        latitude=context.user_data['client_longitude'],
+        longitude=context.user_data['client_longitude'])
+
+    timer_message = context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text='Мы заботимся о своих клиентах чтобы они получали свежеприготовленную пиццу.\n'
+                                  'Если через 1 час вам не привезут пиццу, то мы вернем вам деньги',
+        reply_markup=reply_markup)
+    context.user_data['timer_message_id'] = timer_message.message_id
+    context.job_queue.run_once(send_alarm_clock_message, due, context=update.effective_chat.id)
+    return 'CART'
 
 
 if __name__ == '__main__':
