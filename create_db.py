@@ -6,26 +6,22 @@ import environs
 from moltin import add_product, add_price_to_product, add_file, connect_file_to_product,\
     create_flow, add_fied_to_flow, fill_fied, get_token, get_entries, fill_pizzeria_fieds
 
-if __name__ == '__main__':
-    env = environs.Env()
-    env.read_env()
 
+def get_file(url, file_name):
     """
     Получаем файл с описанием продуктов из интернета и сохраняем его у себя в папке с проектом
     """
-    url2 = 'https://dvmn.org/media/filer_public/a2/5a/a25a7cbd-541c-4caf-9bf9-70dcdf4a592e/menu.json'
-    # response = requests.get(url2)
-    # with open("pizza_menu.json", 'w', encoding='utf8') as json_file:
-    #     json.dump(response.json(), json_file, ensure_ascii=False)
+    response = requests.get(url)
+    with open(file_name, 'w', encoding='utf8') as json_file:
+        json.dump(response.json(), json_file, ensure_ascii=False)
 
+
+def create_moltin_products(file_name, price_list_id):
     """
     Создаем продукты/пиццы из джейсон файла и присваиваем каждому продукту цену и картинку
     """
-    with open("pizza_menu.json", "r") as menu:
+    with open(file_name, "r") as menu:
         menu_items = json.loads(menu.read())
-
-    client_id = env.str("CLIENT_ID")
-    client_secret = env.str("CLIENT_SECRET")
 
     access_token, token_expires = get_token(client_id, client_secret)
 
@@ -39,30 +35,42 @@ if __name__ == '__main__':
         name = pizza['name']
         sku = str(pizza['id'])
         description = f'{pizza["description"]} \n {food_values}'
-        # product_id = add_product(access_token, name, sku, description)
+        product_id = add_product(access_token, name, sku, description)
 
         price = pizza['price']
         usd_rate = 80
-        price_list_id = '71b86c9e-cc52-4934-9f3f-7409f0831d2b'
-        # add_price_to_product(access_token, price, sku, usd_rate, price_list_id)
-
+        add_price_to_product(access_token, price, sku, usd_rate, price_list_id)
         url = pizza['product_image']['url']
-        # img_id = add_file(access_token, url)
+        img_id = add_file(access_token, url)
 
-        # file_id = img_id
-        # connect_file_to_product(access_token, file_id, product_id)
+        file_id = img_id
+        connect_file_to_product(access_token, file_id, product_id)
+
+
+if __name__ == '__main__':
+    env = environs.Env()
+    env.read_env()
+
+    url = 'https://dvmn.org/media/filer_public/a2/5a/a25a7cbd-541c-4caf-9bf9-70dcdf4a592e/menu.json'
+    file_name = "pizza_menu.json"
+    # get_file(url, file_name)
+
+    client_id = env.str("CLIENT_ID")
+    client_secret = env.str("CLIENT_SECRET")
+
+    price_list_id = '71b86c9e-cc52-4934-9f3f-7409f0831d2b'
 
     """
     Создаем модель "Адрес клиента"
     """
+    access_token, token_expires = get_token(client_id, client_secret)
     flow_name = 'Customer Address'
     flow_slug = 'customer_address'
     flow_description = 'Адреса клиента'
     # flow_id = create_flow(access_token,
-    #                    name=flow_name,
-    #                    description=flow_description,
-    #                    slug=flow_slug)
-
+    #                       name=flow_name,
+    #                       description=flow_description,
+    #                       slug=flow_slug)
     # ид пицеррии
     flow_id = '61e8339e-65bf-49fe-9344-eddcd681fdac'
     # ид адрес клиента
@@ -89,9 +97,8 @@ if __name__ == '__main__':
     Скачиваем по ссылке файл с адресами пиццерий
     """
     url = 'https://dvmn.org/media/filer_public/90/90/9090ecbf-249f-42c7-8635-a96985268b88/addresses.json'
-    # response = requests.get(url)
-    # with open("pizza_address.json", 'w', encoding='utf8') as json_file:
-    #     json.dump(response.json(), json_file, ensure_ascii=False)
+    file_name = "pizza_address.json"
+    # get_file(url, file_name)
 
     """
     Заполняем созданную модель пицерий адресами пицерий с координатами
@@ -99,12 +106,12 @@ if __name__ == '__main__':
     with open("pizza_address.json", "r") as address:
         adresses = json.loads(address.read())
 
-    # for address in adresses:
-    #     pizzeria_address = address['address']['full']
-    #     alias = address['alias']
-    #     flow_slug = 'pizzeria'
-    #     longitude = address['coordinates']['lon'].replace(' ', '')
-    #     latitude = address['coordinates']['lat'].replace(' ', '')
+    for address in adresses:
+        pizzeria_address = address['address']['full']
+        alias = address['alias']
+        flow_slug = 'pizzeria'
+        longitude = address['coordinates']['lon'].replace(' ', '')
+        latitude = address['coordinates']['lat'].replace(' ', '')
     #     fill_pizzeria_fieds(
     #         access_token,
     #         address=pizzeria_address,
@@ -122,6 +129,6 @@ if __name__ == '__main__':
     flow_slug = 'pizzeria'
     field_value = 704859099
 
-    # for pizzeria in pizzerias:
-    #     entry_id = pizzeria['id']
+    for pizzeria in pizzerias:
+        entry_id = pizzeria['id']
     #     fill_fied(access_token, fied_slug, field_value, flow_slug, entry_id)
