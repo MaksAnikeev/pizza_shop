@@ -1,7 +1,7 @@
+from pprint import pprint
+
 import requests
 from telegram import InlineKeyboardButton
-import requests
-from pprint import pprint
 
 
 def get_token(client_id, client_secret):
@@ -102,7 +102,8 @@ def create_client(access_token, client_name, email):
 
 def get_products_names(products_params):
     """
-    Получить название продуктов и сформировать их в список для отрисовки клавиатуры в ТГ
+    Получить название продуктов и сформировать их в список
+    для отрисовки клавиатуры в ТГ
     """
     keyboard_products = [InlineKeyboardButton("Главное меню",
                                               callback_data='main_menu')]
@@ -170,7 +171,7 @@ def delete_item_from_cart(access_token, cart_name, product_id):
         'Authorization': f'Bearer {access_token}',
     }
     response = requests.delete(f'https://api.moltin.com/v2/carts/{cart_name}/items/{product_id}',
-                    headers=headers)
+                               headers=headers)
     response.raise_for_status()
     return response
 
@@ -196,7 +197,9 @@ def add_product(access_token, name, sku, description):
             },
         },
     }
-    response = requests.post('https://api.moltin.com/pcm/products', headers=headers, json=json_data)
+    response = requests.post('https://api.moltin.com/pcm/products',
+                             headers=headers,
+                             json=json_data)
     response.raise_for_status()
     product_id = response.json()['data']['id']
     return product_id
@@ -243,7 +246,9 @@ def add_file(access_token, url):
     files = {
         'file_location': (None, url),
     }
-    response = requests.post('https://api.moltin.com/v2/files', headers=headers, files=files)
+    response = requests.post('https://api.moltin.com/v2/files',
+                             headers=headers,
+                             files=files)
     response.raise_for_status()
     img_id = response.json()['data']['id']
     return img_id
@@ -290,7 +295,9 @@ def create_flow(access_token, name, description, slug):
             'enabled': True,
         },
     }
-    response = requests.post('https://api.moltin.com/v2/flows', headers=headers, json=json_data)
+    response = requests.post('https://api.moltin.com/v2/flows',
+                             headers=headers,
+                             json=json_data)
     response.raise_for_status()
     flow_id = response.json()['data']['id']
     return flow_id
@@ -324,15 +331,17 @@ def add_fied_to_flow(access_token, name, slug, field_type, description, flow_id,
             },
         },
     }
-    response = requests.post('https://api.moltin.com/v2/fields', headers=headers, json=json_data)
+    response = requests.post('https://api.moltin.com/v2/fields',
+                             headers=headers,
+                             json=json_data)
     response.raise_for_status()
     return response.json()
 
 
 def fill_pizzeria_fieds(access_token, address, flow_slug,
-              alias=None,
-              longitude=None,
-              latitude=None):
+                        alias=None,
+                        longitude=None,
+                        latitude=None):
     """
     Заполнить поля в модели
     """
@@ -350,7 +359,9 @@ def fill_pizzeria_fieds(access_token, address, flow_slug,
             },
         }
 
-    response = requests.post(f'https://api.moltin.com/v2/flows/{flow_slug}/entries', headers=headers, json=json_data)
+    response = requests.post(f'https://api.moltin.com/v2/flows/{flow_slug}/entries',
+                             headers=headers,
+                             json=json_data)
     response.raise_for_status()
     return response.json()
 
@@ -375,7 +386,9 @@ def fill_fieds(access_token, flow_slug,
             },
         }
 
-    response = requests.post(f'https://api.moltin.com/v2/flows/{flow_slug}/entries', headers=headers, json=json_data)
+    response = requests.post(f'https://api.moltin.com/v2/flows/{flow_slug}/entries',
+                             headers=headers,
+                             json=json_data)
     response.raise_for_status()
     entry_id = response.json()['data']['id']
     return entry_id
@@ -397,10 +410,13 @@ def fill_fied(access_token, fied_slug, field_value, flow_slug, entry_id):
             },
         }
 
-    response = requests.put(f'https://api.moltin.com/v2/flows/{flow_slug}/entries/{entry_id}', headers=headers, json=json_data)
+    response = requests.put(f'https://api.moltin.com/v2/flows/{flow_slug}/entries/{entry_id}',
+                            headers=headers,
+                            json=json_data)
     pprint(response.json())
     response.raise_for_status()
     return response.json()
+
 
 def get_entries(access_token, slug):
     """
@@ -409,7 +425,8 @@ def get_entries(access_token, slug):
     headers = {
         'Authorization': f'Bearer {access_token}',
     }
-    response = requests.get(f'https://api.moltin.com/v2/flows/{slug}/entries', headers=headers)
+    response = requests.get(f'https://api.moltin.com/v2/flows/{slug}/entries',
+                            headers=headers)
     return response.json()['data']
 
 
@@ -420,6 +437,7 @@ def get_entrie(access_token, slug, id):
     headers = {
             'Authorization': f'Bearer {access_token}',
     }
-    response = requests.get(f'https://api.moltin.com/v2/flows/{slug}/entries/{id}', headers=headers)
+    response = requests.get(f'https://api.moltin.com/v2/flows/{slug}/entries/{id}',
+                            headers=headers)
     response.raise_for_status()
     return response.json()

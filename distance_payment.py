@@ -1,11 +1,13 @@
+import time
+
 import environs
 import requests
-import time
 from geopy import distance
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
-from telegram.ext import (Filters, MessageHandler, Updater, PreCheckoutQueryHandler)
+from telegram.ext import (Filters, MessageHandler, PreCheckoutQueryHandler,
+                          Updater)
+
 from moltin import get_entrie, get_token
-from pprint import pprint
 
 
 def fetch_coordinates(api_yandex_key, address):
@@ -36,7 +38,8 @@ def get_min_distance(client_coordinates, pizzerias_params):
         pizzeria_longitude = pizzeria['pizzeria_longitude']
         pizzeria_latitude = pizzeria['pizzeria_latitude']
         pizzeria_address = (pizzeria_longitude, pizzeria_latitude)
-        client_distance = round(distance.distance(client_coordinates, pizzeria_address).km, 2)
+        client_distance = round(distance.distance(client_coordinates,
+                                                  pizzeria_address).km, 2)
         client_params = {'pizzeria_address': pizzeria['pizzeria_address'],
                          'distance': client_distance,
                          'pizzeria_id': pizzeria['id']}
@@ -50,10 +53,12 @@ def get_min_distance(client_coordinates, pizzerias_params):
 
 def send_alarm_clock_message(context):
     job = context.job
-    alarm_clock_message = 'Приятного аппетита! Надеемся что пицца к вам пришла вовремя ' \
+    alarm_clock_message = 'Приятного аппетита! ' \
+                          'Надеемся что пицца к вам пришла вовремя ' \
                           'и вы уже наслаждаетесь ее вкусом! \n\n' \
-                          'Если это вдруг не так, то свяжитесь с нами по этому телефону +7 978 656 44 55' \
-                          'и мы вам вернем деньги.'
+                          'Если это вдруг не так,' \
+                          ' то свяжитесь с нами по этому телефону' \
+                          ' +7 978 656 44 55 и мы вам вернем деньги.'
     keyboard = [[InlineKeyboardButton("Назад к корзине",
                                       callback_data='back_to_cart')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -103,14 +108,16 @@ def one_hour_timer(update, context):
              'Если через 1 час вам не привезут пиццу, то мы вернем вам деньги',
         reply_markup=reply_markup)
     context.user_data['timer_message_id'] = timer_message.message_id
-    context.job_queue.run_once(send_alarm_clock_message, due, context=update.effective_chat.id)
+    context.job_queue.run_once(send_alarm_clock_message,
+                               due,
+                               context=update.effective_chat.id)
     return 'CART'
 
 
 def send_payment(update, context):
     chat_id = update.effective_chat.id
     title = "Оплата заказа в пицца-Макс"
-    description = f"Стоимость заказа {context.user_data['cart_sum_num']}руб \n" \
+    description = f"Стоимость заказа - {context.user_data['cart_sum_num']}руб \n" \
                   f"Стоимость доставки - {context.user_data['delivery_tax']}руб"
     payload = "Custom-Payload"
     currency = "RUB"
@@ -160,7 +167,8 @@ if __name__ == '__main__':
     api_yandex_key = env('API_YANDEX_KEY')
 
     dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
-    dispatcher.add_handler(MessageHandler(Filters.successful_payment, successful_payment))
+    dispatcher.add_handler(MessageHandler(Filters.successful_payment,
+                                          successful_payment))
 
     updater.start_polling()
     updater.idle()

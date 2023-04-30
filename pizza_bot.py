@@ -1,26 +1,22 @@
-import argparse
+from datetime import datetime
 from textwrap import dedent
 
 import environs
 import redis
 import requests
-# import time
-# from geopy import distance
-from datetime import datetime
 from more_itertools import chunked
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import (CallbackQueryHandler, CommandHandler, Filters,
-                          MessageHandler, Updater, PreCheckoutQueryHandler)
-from moltin import (get_token, get_product_params,
-                    get_products_prices, get_product_files, create_client,
-                    get_products_names, get_products_params, add_item_to_cart,
-                    get_products_from_cart, get_cart_params, delete_item_from_cart,
-                    get_entries, fill_fieds, get_entrie)
-from distance_payment import (fetch_coordinates, get_min_distance, send_payment,
-                              precheckout_callback, successful_payment)
+                          MessageHandler, PreCheckoutQueryHandler, Updater)
 
-
-from pprint import pprint
+from distance_payment import (fetch_coordinates, get_min_distance,
+                              precheckout_callback, send_payment,
+                              successful_payment)
+from moltin import (add_item_to_cart, create_client, delete_item_from_cart,
+                    fill_fieds, get_cart_params, get_entrie, get_entries,
+                    get_product_files, get_product_params,
+                    get_products_from_cart, get_products_names,
+                    get_products_params, get_products_prices, get_token)
 
 _database = None
 
@@ -41,7 +37,8 @@ def start(update, context):
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     try:
-        update.message.reply_text('Привет! Сделай выбор:', reply_markup=reply_markup)
+        update.message.reply_text('Привет! Сделай выбор:',
+                                  reply_markup=reply_markup)
         return 'MAIN_MENU'
     except:
         query = update.callback_query
@@ -217,13 +214,14 @@ def show_cart(update, context):
         КОЛИЧЕСТВО: {product["quantity"]} шт
         СУММА: {"%.2f" % (product["value"]["amount"]/100)} {product["value"]["currency"]}
         ''').replace("    ", "")
-        for count, product in enumerate(products_in_cart_params['data'])
-        ]
+                     for count, product in enumerate(products_in_cart_params['data'])
+                     ]
 
     cart_params = get_cart_params(access_token=access_token,
                                   cart_name=tg_id)
     cart_sum_num = cart_params["data"]["meta"]["display_price"]["with_tax"]["formatted"]
-    context.user_data['cart_sum_num'] = cart_sum_num.replace('.', '').replace(' руб', '').replace(',00', '').replace(' ', '')
+    context.user_data['cart_sum_num'] = cart_sum_num.replace('.', '').\
+        replace(' руб', '').replace(',00', '').replace(' ', '')
     cart_sum = dedent(f'''
             ИТОГО {cart_sum_num}
             ''').replace("    ", "")
@@ -260,8 +258,8 @@ def delete_product_from_cart(update, context):
     tg_id = context.user_data['tg_id']
 
     delete_item_from_cart(access_token=access_token,
-                       cart_name=tg_id,
-                       product_id=product_id)
+                          cart_name=tg_id,
+                          product_id=product_id)
 
     return show_cart(update, context)
 
@@ -311,7 +309,8 @@ def get_email(update, context):
             chat_id=update.effective_chat.id,
             text=f'Вы нам прислали {email}\n'
                  f'На данные емейл будут отправлены подробности заказа\n'
-                 f'Пришлите нам ваш адрес текстом или геолокацию, для определения куда вам доставить пиццу',
+                 f'Пришлите нам ваш адрес текстом или геолокацию,'
+                 f' для определения куда вам доставить пиццу',
             reply_markup=reply_markup
         )
         context.user_data['send_email'] = send_email.message_id
@@ -355,8 +354,7 @@ def get_address(update, context):
         keyboard = [
             [InlineKeyboardButton("Доставка", callback_data='delivery'),
              InlineKeyboardButton("Самовывоз", callback_data='pickup')],
-            [InlineKeyboardButton("Назад к корзине",
-                                          callback_data='back_to_cart')]]
+            [InlineKeyboardButton("Назад к корзине", callback_data='back_to_cart')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         flow_slug = 'customer_address'
@@ -366,10 +364,11 @@ def get_address(update, context):
         second_value = lon
         third_field = 'client_latitude'
         third_value = lat
-        entry_client_id = fill_fieds(access_token, flow_slug,
-                   first_field, first_value,
-                   second_field, second_value,
-                   third_field, third_value, )
+        entry_client_id = fill_fieds(
+            access_token, flow_slug,
+            first_field, first_value,
+            second_field, second_value,
+            third_field, third_value)
         context.user_data['entry_client_id'] = entry_client_id
 
         slug = 'pizzeria'
@@ -393,8 +392,8 @@ def get_address(update, context):
             context.user_data['delivery_tax'] = 300
         elif distance_to_client > 20:
             message = f'Ваша пицца будет готовится по адресу: {pizzeria_address}. \n' \
-                      f'Вы находитесь на расстоянии {distance_to_client}км. \n Так далеко мы не возим.' \
-                      f'Можете забрать самовывозом.'
+                      f'Вы находитесь на расстоянии {distance_to_client}км. \n ' \
+                      f'Так далеко мы не возим. Можете забрать самовывозом.'
 
         delivery_massage = context.bot.send_message(
                 chat_id=update.effective_chat.id,
@@ -411,9 +410,9 @@ def get_address(update, context):
     except:
         context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text='Вы ввели некорректный адрес, попробуйте ввести заново или прислать геопозицию',
+            text='Вы ввели некорректный адрес,'
+                 ' попробуйте ввести заново или прислать геопозицию',
         )
-
 
 
 def send_pickup_message(update, context):
@@ -434,11 +433,6 @@ def send_pickup_message(update, context):
         message_id=query.message.message_id,
         reply_markup=reply_markup
     )
-    # context.bot.send_message(
-    #     chat_id=update.effective_chat.id,
-    #     text=message,
-    #     reply_markup=reply_markup
-    # )
     context.user_data['delivery_choice'] = 'pickup'
     return 'CART'
 
@@ -514,6 +508,7 @@ def handle_button(update, context):
             message_id=context.user_data['timer_message_id']
         )
 
+
 def handle_users_reply(update, context):
     db = get_database_connection()
     if update.message:
@@ -566,140 +561,6 @@ def get_database_connection():
     return _database
 
 
-# def fetch_coordinates(api_yandex_key, address):
-#     base_url = "https://geocode-maps.yandex.ru/1.x"
-#     response = requests.get(base_url, params={
-#         "geocode": address,
-#         "apikey": api_yandex_key,
-#         "format": "json",
-#     })
-#     response.raise_for_status()
-#     found_places = response.json()['response']['GeoObjectCollection']['featureMember']
-#
-#     if not found_places:
-#         return None
-#
-#     most_relevant = found_places[0]
-#     lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
-#     return lon, lat
-#
-# def get_user_dictance(user):
-#     return user['distance']
-#
-#
-# def get_min_distance(client_coordinates, pizzerias_params):
-#     distance_to_client = []
-#     for pizzeria in pizzerias_params:
-#         pizzeria_longitude = pizzeria['pizzeria_longitude']
-#         pizzeria_latitude = pizzeria['pizzeria_latitude']
-#         pizzeria_address = (pizzeria_longitude, pizzeria_latitude)
-#         client_distance = round(distance.distance(client_coordinates, pizzeria_address).km, 2)
-#         client_params = {'pizzeria_address': pizzeria['pizzeria_address'],
-#                          'distance': client_distance,
-#                          'pizzeria_id': pizzeria['id']}
-#         distance_to_client.append(client_params)
-#     distance_params = min(distance_to_client, key=get_user_dictance)
-#     pizzeria_full_address = distance_params['pizzeria_address']
-#     distance_to_client = distance_params['distance']
-#     pizzeria_id = distance_params['pizzeria_id']
-#     return pizzeria_full_address, pizzeria_id, distance_to_client
-#
-#
-# def send_alarm_clock_message(context):
-#     job = context.job
-#     alarm_clock_message = 'Приятного аппетита! Надеемся что пицца к вам пришла вовремя ' \
-#                           'и вы уже наслаждаетесь ее вкусом! \n\n' \
-#                           'Если это вдруг не так, то свяжитесь с нами по этому телефону +7 978 656 44 55' \
-#                           'и мы вам вернем деньги.'
-#     keyboard = [[InlineKeyboardButton("Назад к корзине",
-#                                       callback_data='back_to_cart')]]
-#     reply_markup = InlineKeyboardMarkup(keyboard)
-#     context.bot.send_message(
-#         chat_id=job.context,
-#         text=alarm_clock_message,
-#         reply_markup=reply_markup)
-#     return 'CART'
-#
-#
-# def one_hour_timer(update, context):
-#     time.sleep(4)
-#     due = 60
-#     keyboard = [[InlineKeyboardButton("Назад к корзине",
-#                                       callback_data='back_to_cart')]]
-#     reply_markup = InlineKeyboardMarkup(keyboard)
-#     context.bot.delete_message(
-#         chat_id=update.effective_chat.id,
-#         message_id=context.user_data['message_id']
-#     )
-#
-#     id = context.user_data['pizzeria_id']
-#     slug = 'pizzeria'
-#     courier_tg_id = get_entrie(access_token, slug, id)['data']['telegram_id']
-#     client_address = context.user_data['client_address']
-#     context.bot.send_message(
-#         chat_id=courier_tg_id,
-#         text=f'Это видит только курьер \n'
-#              f'Адрес клиента: {client_address}',
-#     )
-#     context.bot.send_location(
-#         chat_id=courier_tg_id,
-#         latitude=context.user_data['client_longitude'],
-#         longitude=context.user_data['client_longitude'])
-#
-#     timer_message = context.bot.send_message(
-#         chat_id=update.effective_chat.id,
-#         text='Оплата успешно произведена \n '
-#              'Мы заботимся о своих клиентах чтобы они получали свежеприготовленную пиццу.\n'
-#              'Если через 1 час вам не привезут пиццу, то мы вернем вам деньги',
-#         reply_markup=reply_markup)
-#     context.user_data['timer_message_id'] = timer_message.message_id
-#     context.job_queue.run_once(send_alarm_clock_message, due, context=update.effective_chat.id)
-#     return 'CART'
-
-
-# def send_payment(update, context):
-#     chat_id = update.effective_chat.id
-#     title = "Оплата заказа в пицца-Макс"
-#     description = f"Стоимость заказа {context.user_data['cart_sum_num']}руб \n" \
-#                   f"Стоимость доставки - {context.user_data['delivery_tax']}руб"
-#     payload = "Custom-Payload"
-#     currency = "RUB"
-#     price = int(context.user_data['cart_sum_num']) + int(context.user_data['delivery_tax'])
-#     prices = [LabeledPrice("Test", price * 10)]
-#     context.bot.send_invoice(
-#         chat_id, title, description, payload, provider_token, currency, prices)
-
-
-# def precheckout_callback(update, context):
-#     query = update.pre_checkout_query
-#     if query.invoice_payload != 'Custom-Payload':
-#         query.answer(ok=False, error_message="Something went wrong...")
-#     else:
-#         query.answer(ok=True)
-
-
-# def successful_payment(update, context):
-#     if context.user_data['delivery_choice'] == 'delivery':
-#         return one_hour_timer(update, context)
-#     else:
-#         message = 'Оплата успешно произведена, ждем вас за пиццей'
-#         keyboard = [[InlineKeyboardButton("Назад к корзине",
-#                                           callback_data='back_to_cart')]]
-#         reply_markup = InlineKeyboardMarkup(keyboard)
-#         context.bot.send_message(
-#             chat_id=update.effective_chat.id,
-#             text=message,
-#             reply_markup=reply_markup)
-#         return 'CART'
-
-# query = update.callback_query
-#     context.bot.edit_message_text(
-#         text=payment_message,
-#         chat_id=query.message.chat_id,
-#         message_id=query.message.message_id,
-#         parse_mode=ParseMode.HTML,
-#         reply_markup=reply_markup)
-
 if __name__ == '__main__':
     env = environs.Env()
     env.read_env()
@@ -724,7 +585,8 @@ if __name__ == '__main__':
     dispatcher.add_handler(MessageHandler(Filters.text, handle_users_reply))
     dispatcher.add_handler(MessageHandler(Filters.location, get_address))
     dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
-    dispatcher.add_handler(MessageHandler(Filters.successful_payment, successful_payment))
+    dispatcher.add_handler(MessageHandler(Filters.successful_payment,
+                                          successful_payment))
     updater.dispatcher.add_handler(CallbackQueryHandler(handle_button))
 
     updater.start_polling()
