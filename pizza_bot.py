@@ -17,7 +17,7 @@ from moltin import (add_item_to_cart, create_client, delete_item_from_cart,
                     get_product_files, get_product_params,
                     get_products_from_cart, get_products_names,
                     get_products_params, get_products_prices, get_token)
-
+from pprint import pprint
 _database = None
 
 
@@ -36,6 +36,8 @@ def start(update, context):
                  InlineKeyboardButton("Моя корзина", callback_data='cart')]]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
+    context.user_data['first_num'] = 0
+    context.user_data['second_num'] = 8
     try:
         update.message.reply_text('Привет! Сделай выбор:',
                                   reply_markup=reply_markup)
@@ -52,10 +54,11 @@ def start(update, context):
 def send_products_keyboard(update, context):
     query = update.callback_query
     access_token = dispatcher.bot_data['access_token']
-    products_params = get_products_params(access_token)
-    products_names = get_products_names(products_params)
-    keyboard = list(chunked(products_names, 2))
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    first_num = context.user_data['first_num']
+    second_num = context.user_data['second_num']
+    products_params = get_products_params(access_token)['data'][first_num:second_num]
+    products_names = list(chunked(get_products_names(products_params), 2))
+    reply_markup = InlineKeyboardMarkup(products_names)
     try:
         context.bot.edit_message_text(
             text='Выбери товар из магазина:',
@@ -80,8 +83,22 @@ def send_products_keyboard(update, context):
 
 def send_product_description(update, context):
     query = update.callback_query
+    num = 8
     if query.data == 'main_menu':
         return start(update, context)
+    elif query.data == 'back_list_product':
+        if context.user_data['first_num'] < num:
+            context.user_data['first_num'] = 0
+            context.user_data['second_num'] = num
+            return send_products_keyboard(update, context)
+        else:
+            context.user_data['first_num'] -= num
+            context.user_data['second_num'] -= num
+            return send_products_keyboard(update, context)
+    elif query.data == 'next_list_product':
+        context.user_data['first_num'] += num
+        context.user_data['second_num'] += num
+        return send_products_keyboard(update, context)
 
     keyboard = [[InlineKeyboardButton("1шт", callback_data='1pc'),
                  InlineKeyboardButton("2шт", callback_data='2pc'),
@@ -100,7 +117,7 @@ def send_product_description(update, context):
 
     context.user_data['product_name'] = product_name
     price_list_id = dispatcher.bot_data['price_list_id']
-
+    print(product_sku)
     products_prices = get_products_prices(
         access_token,
         price_list_id=price_list_id

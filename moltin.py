@@ -105,9 +105,12 @@ def get_products_names(products_params):
     Получить название продуктов и сформировать их в список
     для отрисовки клавиатуры в ТГ
     """
-    keyboard_products = [InlineKeyboardButton("Главное меню",
-                                              callback_data='main_menu')]
-    for product in products_params['data']:
+    keyboard_products = [InlineKeyboardButton("Назад", callback_data='back_list_product'),
+                          InlineKeyboardButton("Вперед", callback_data='next_list_product'),
+                         InlineKeyboardButton("Главное меню", callback_data='main_menu')]
+    # keyboard_products = [InlineKeyboardButton("Главное меню",
+    #                                           callback_data='main_menu')]
+    for product in products_params:
         button_name = product['attributes']['name']
         button_id = product['id']
         button = InlineKeyboardButton(button_name, callback_data=button_id)
