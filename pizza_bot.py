@@ -117,7 +117,6 @@ def send_product_description(update, context):
 
     context.user_data['product_name'] = product_name
     price_list_id = dispatcher.bot_data['price_list_id']
-    print(product_sku)
     products_prices = get_products_prices(
         access_token,
         price_list_id=price_list_id
