@@ -108,8 +108,6 @@ def get_products_names(products_params):
     keyboard_products = [InlineKeyboardButton("Назад", callback_data='back_list_product'),
                           InlineKeyboardButton("Вперед", callback_data='next_list_product'),
                          InlineKeyboardButton("Главное меню", callback_data='main_menu')]
-    # keyboard_products = [InlineKeyboardButton("Главное меню",
-    #                                           callback_data='main_menu')]
     for product in products_params:
         button_name = product['attributes']['name']
         button_id = product['id']
