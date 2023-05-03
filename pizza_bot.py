@@ -324,10 +324,10 @@ def get_email(update, context):
     if response.ok or response.json()['errors'][0]['title'] == 'Duplicate email':
         send_email = context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=f'Вы нам прислали {email}\n'
-                 f'На данные емейл будут отправлены подробности заказа\n'
-                 f'Пришлите нам ваш адрес текстом или геолокацию,'
-                 f' для определения куда вам доставить пиццу',
+            text=dedent(f'''Вы нам прислали {email}
+                 На данные емейл будут отправлены подробности заказа
+                 Пришлите нам ваш адрес текстом или геолокацию,
+                 для определения куда вам доставить пиццу''').replace("    ", ""),
             reply_markup=reply_markup
         )
         context.user_data['send_email'] = send_email.message_id
@@ -401,22 +401,22 @@ def get_address(update, context):
     context.user_data['pizzeria_id'] = pizzeria_id
 
     if distance_to_client <= 0.5:
-        message = f'''Можете забрать пиццу из нашей пицерии неподалеку. 
+        message = dedent(f'''Можете забрать пиццу из нашей пицерии неподалеку. 
                     Она всего в {distance_to_client*1000}м от вас, адрес {pizzeria_address} 
-                    А можем и бесплатно доставить, нам не сложно'''
+                    А можем и бесплатно доставить, нам не сложно''').replace("    ", "")
         context.user_data['delivery_tax'] = 0
     elif distance_to_client <= 5:
-        message = f'''Ваша пицца будет готовится по адресу: {pizzeria_address}. 
-                    Придется к вам ехать на самокате, доставка будет 100р'''
+        message = dedent(f'''Ваша пицца будет готовится по адресу: {pizzeria_address}. 
+                    Придется к вам ехать на самокате, доставка будет 100р''').replace("    ", "")
         context.user_data['delivery_tax'] = 100
     elif distance_to_client <= 20:
-        message = f'''Ваша пицца будет готовится по адресу: {pizzeria_address}.
-                    Придется к вам ехать на машине, доставка будет 300р'''
+        message = dedent(f'''Ваша пицца будет готовится по адресу: {pizzeria_address}.
+                    Придется к вам ехать на машине, доставка будет 300р''').replace("    ", "")
         context.user_data['delivery_tax'] = 300
     elif distance_to_client > 20:
-        message = f'''Ваша пицца будет готовится по адресу: {pizzeria_address}. 
+        message = dedent(f'''Ваша пицца будет готовится по адресу: {pizzeria_address}. 
                     Вы находитесь на расстоянии {distance_to_client}км.
-                    Так далеко мы не возим. Можете забрать самовывозом.'''
+                    Так далеко мы не возим. Можете забрать самовывозом.''').replace("    ", "")
 
     delivery_massage = context.bot.send_message(
             chat_id=update.effective_chat.id,
