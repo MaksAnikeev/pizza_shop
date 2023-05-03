@@ -516,7 +516,8 @@ def handle_button(update, context):
         return ask_email(update, context)
 
     elif query.data == 'payment':
-        return send_payment(update, context)
+        provider_token = dispatcher.bot_data['provider_token']
+        return send_payment(update, context, provider_token)
 
     elif context.user_data['timer_message_id']:
         context.bot.delete_message(

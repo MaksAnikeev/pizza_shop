@@ -106,7 +106,7 @@ def one_hour_timer(update, context, access_token):
                                context=update.effective_chat.id)
 
 
-def send_payment(update, context):
+def send_payment(update, context, provider_token):
     chat_id = update.effective_chat.id
     title = "Оплата заказа в пицца-Макс"
     description = f"Стоимость заказа - {context.user_data['cart_sum_num']}руб \n" \
@@ -115,10 +115,6 @@ def send_payment(update, context):
     currency = "RUB"
     price = int(context.user_data['cart_sum_num']) + int(context.user_data['delivery_tax'])
     prices = [LabeledPrice("Test", price * 10)]
-
-    env = environs.Env()
-    env.read_env()
-    provider_token = env.str("PAYMENT_UKASSA_TOKEN")
 
     context.bot.send_invoice(
         chat_id, title, description, payload, provider_token, currency, prices)
