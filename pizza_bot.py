@@ -41,7 +41,8 @@ def start(update, context):
         update.message.reply_text('Привет! Сделай выбор:',
                                   reply_markup=reply_markup)
         return 'MAIN_MENU'
-    except:
+
+    except AttributeError:
         query = update.callback_query
         context.bot.edit_message_text(text='Привет! Сделай выбор:',
                                       chat_id=query.message.chat_id,
@@ -66,6 +67,7 @@ def send_products_keyboard(update, context):
             reply_markup=reply_markup
         )
         return "PRODUCT"
+
     except:
         context.bot.send_message(
             text='Выбери товар из магазина:',
@@ -154,7 +156,7 @@ def send_product_description(update, context):
         )
         return "ADD_CART"
 
-    except:
+    except TypeError:
         context.bot.edit_message_text(
             text=product_message,
             chat_id=query.message.chat_id,
@@ -357,77 +359,77 @@ def get_address(update, context):
     address = update.message.text
     context.user_data['client_address'] = address
     try:
+        message = update.message
+        lat = message.location.latitude
+        lon = message.location.longitude
+        client_coordinates = (lon, lat)
+    except AttributeError:
         try:
-            message = update.message
-            lat = message.location.latitude
-            lon = message.location.longitude
-            client_coordinates = (lon, lat)
-        except:
             lon, lat = fetch_coordinates(api_yandex_key, address)
             client_coordinates = (lon, lat)
-
-        keyboard = [
-            [InlineKeyboardButton("Доставка", callback_data='delivery'),
-             InlineKeyboardButton("Самовывоз", callback_data='pickup')],
-            [InlineKeyboardButton("Назад к корзине", callback_data='back_to_cart')]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        flow_slug = 'customer_address'
-        first_field = 'client_id'
-        first_value = context.user_data['tg_id']
-        second_field = 'client_longitude'
-        second_value = lon
-        third_field = 'client_latitude'
-        third_value = lat
-        entry_client_id = fill_fieds(
-            access_token, flow_slug,
-            first_field, first_value,
-            second_field, second_value,
-            third_field, third_value)
-        context.user_data['entry_client_id'] = entry_client_id
-
-        slug = 'pizzeria'
-        pizzerias_params = get_entries(access_token, slug)
-        pizzeria_address, pizzeria_id, distance_to_client = get_min_distance(client_coordinates, pizzerias_params)
-        context.user_data['pizzeria_address'] = pizzeria_address
-        context.user_data['pizzeria_id'] = pizzeria_id
-
-        if distance_to_client <= 0.5:
-            message = f'Можете забрать пиццу из нашей пицерии неподалеку. Она всего в ' \
-                      f'{distance_to_client*1000}м от вас, адрес {pizzeria_address} \n\n' \
-                      f'А можем и бесплатно доставить, нам не сложно'
-            context.user_data['delivery_tax'] = 0
-        elif distance_to_client <= 5:
-            message = f'Ваша пицца будет готовится по адресу: {pizzeria_address}. \n' \
-                      f'Придется к вам ехать на самокате, доставка будет 100р'
-            context.user_data['delivery_tax'] = 100
-        elif distance_to_client <= 20:
-            message = f'Ваша пицца будет готовится по адресу: {pizzeria_address}. \n' \
-                      f'Придется к вам ехать на машине, доставка будет 300р'
-            context.user_data['delivery_tax'] = 300
-        elif distance_to_client > 20:
-            message = f'Ваша пицца будет готовится по адресу: {pizzeria_address}. \n' \
-                      f'Вы находитесь на расстоянии {distance_to_client}км. \n ' \
-                      f'Так далеко мы не возим. Можете забрать самовывозом.'
-
-        delivery_massage = context.bot.send_message(
+        except TypeError:
+            context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text=message,
-                reply_markup=reply_markup
+                text='Вы ввели некорректный адрес,'
+                     ' попробуйте ввести заново или прислать геопозицию',
             )
-        context.user_data['delivery_massage'] = delivery_massage.message_id
 
-        context.bot.delete_message(
+    keyboard = [
+        [InlineKeyboardButton("Доставка", callback_data='delivery'),
+            InlineKeyboardButton("Самовывоз", callback_data='pickup')],
+        [InlineKeyboardButton("Назад к корзине", callback_data='back_to_cart')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    flow_slug = 'customer_address'
+    first_field = 'client_id'
+    first_value = context.user_data['tg_id']
+    second_field = 'client_longitude'
+    second_value = lon
+    third_field = 'client_latitude'
+    third_value = lat
+    entry_client_id = fill_fieds(
+        access_token, flow_slug,
+        first_field, first_value,
+        second_field, second_value,
+        third_field, third_value)
+    context.user_data['entry_client_id'] = entry_client_id
+
+    slug = 'pizzeria'
+    pizzerias_params = get_entries(access_token, slug)
+    pizzeria_address, pizzeria_id, distance_to_client = get_min_distance(client_coordinates, pizzerias_params)
+    context.user_data['pizzeria_address'] = pizzeria_address
+    context.user_data['pizzeria_id'] = pizzeria_id
+
+    if distance_to_client <= 0.5:
+        message = f'''Можете забрать пиццу из нашей пицерии неподалеку. 
+                    Она всего в {distance_to_client*1000}м от вас, адрес {pizzeria_address} 
+                    А можем и бесплатно доставить, нам не сложно'''
+        context.user_data['delivery_tax'] = 0
+    elif distance_to_client <= 5:
+        message = f'''Ваша пицца будет готовится по адресу: {pizzeria_address}. 
+                    Придется к вам ехать на самокате, доставка будет 100р'''
+        context.user_data['delivery_tax'] = 100
+    elif distance_to_client <= 20:
+        message = f'''Ваша пицца будет готовится по адресу: {pizzeria_address}.
+                    Придется к вам ехать на машине, доставка будет 300р'''
+        context.user_data['delivery_tax'] = 300
+    elif distance_to_client > 20:
+        message = f'''Ваша пицца будет готовится по адресу: {pizzeria_address}. 
+                    Вы находитесь на расстоянии {distance_to_client}км.
+                    Так далеко мы не возим. Можете забрать самовывозом.'''
+
+    delivery_massage = context.bot.send_message(
             chat_id=update.effective_chat.id,
-            message_id=context.user_data['send_email']
+            text=message,
+            reply_markup=reply_markup
         )
-        return 'CART'
-    except:
-        context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text='Вы ввели некорректный адрес,'
-                 ' попробуйте ввести заново или прислать геопозицию',
-        )
+    context.user_data['delivery_massage'] = delivery_massage.message_id
+
+    context.bot.delete_message(
+        chat_id=update.effective_chat.id,
+        message_id=context.user_data['send_email']
+    )
+    return 'CART'
 
 
 def send_pickup_message(update, context):
