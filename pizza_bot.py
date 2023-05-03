@@ -24,8 +24,7 @@ _database = None
 def check_token(token_expires):
     timestamp_now = datetime.now().timestamp()
     delta = token_expires - timestamp_now
-    if delta > 0:
-        return True
+    return delta > 0
 
 
 def start(update, context):
