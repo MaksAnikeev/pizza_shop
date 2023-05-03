@@ -70,7 +70,6 @@ def send_alarm_clock_message(context):
 
 
 def one_hour_timer(update, context, access_token):
-    time.sleep(4)
     due = 60
     keyboard = [[InlineKeyboardButton("Назад к корзине",
                                       callback_data='back_to_cart')]]
@@ -105,7 +104,6 @@ def one_hour_timer(update, context, access_token):
     context.job_queue.run_once(send_alarm_clock_message,
                                due,
                                context=update.effective_chat.id)
-    return 'CART'
 
 
 def send_payment(update, context):
@@ -147,22 +145,3 @@ def successful_payment(update, context, access_token):
             text=message,
             reply_markup=reply_markup)
         return 'CART'
-
-
-if __name__ == '__main__':
-    env = environs.Env()
-    env.read_env()
-
-    token = env.str("TG_BOT_TOKEN")
-    provider_token = env.str("PAYMENT_UKASSA_TOKEN")
-    updater = Updater(token)
-    dispatcher = updater.dispatcher
-
-    api_yandex_key = env('API_YANDEX_KEY')
-
-    dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
-    dispatcher.add_handler(MessageHandler(Filters.successful_payment,
-                                          successful_payment))
-
-    updater.start_polling()
-    updater.idle()
