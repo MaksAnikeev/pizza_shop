@@ -7,7 +7,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
 from telegram.ext import (Filters, MessageHandler, PreCheckoutQueryHandler,
                           Updater)
 
-from moltin import get_entrie, get_token
+from moltin import get_entrie
 
 
 def fetch_coordinates(api_yandex_key, address):
@@ -69,7 +69,7 @@ def send_alarm_clock_message(context):
     return 'CART'
 
 
-def one_hour_timer(update, context):
+def one_hour_timer(update, context, access_token):
     time.sleep(4)
     due = 60
     keyboard = [[InlineKeyboardButton("Назад к корзине",
@@ -83,12 +83,6 @@ def one_hour_timer(update, context):
     id = context.user_data['pizzeria_id']
     slug = 'pizzeria'
 
-    env = environs.Env()
-    env.read_env()
-    client_id = env.str("CLIENT_ID")
-    client_secret = env.str("CLIENT_SECRET")
-    access_token, token_expires = get_token(client_id, client_secret)
-
     courier_tg_id = get_entrie(access_token, slug, id)['data']['telegram_id']
     client_address = context.user_data['client_address']
     context.bot.send_message(
@@ -98,7 +92,7 @@ def one_hour_timer(update, context):
     )
     context.bot.send_location(
         chat_id=courier_tg_id,
-        latitude=context.user_data['client_longitude'],
+        latitude=context.user_data['client_latitude'],
         longitude=context.user_data['client_longitude'])
 
     timer_message = context.bot.send_message(
@@ -140,9 +134,9 @@ def precheckout_callback(update, context):
         query.answer(ok=True)
 
 
-def successful_payment(update, context):
+def successful_payment(update, context, access_token):
     if context.user_data['delivery_choice'] == 'delivery':
-        return one_hour_timer(update, context)
+        return one_hour_timer(update, context, access_token)
     else:
         message = 'Оплата успешно произведена, ждем вас за пиццей'
         keyboard = [[InlineKeyboardButton("Назад к корзине",

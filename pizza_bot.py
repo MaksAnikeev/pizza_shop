@@ -8,6 +8,7 @@ from more_itertools import chunked
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import (CallbackQueryHandler, CommandHandler, Filters,
                           MessageHandler, PreCheckoutQueryHandler, Updater)
+from functools import partial
 
 from distance_payment import (fetch_coordinates, get_min_distance,
                               precheckout_callback, send_payment,
@@ -601,7 +602,7 @@ if __name__ == '__main__':
     dispatcher.add_handler(MessageHandler(Filters.location, get_address))
     dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
     dispatcher.add_handler(MessageHandler(Filters.successful_payment,
-                                          successful_payment))
+                                          partial(successful_payment, access_token=access_token)))
     updater.dispatcher.add_handler(CallbackQueryHandler(handle_button))
 
     updater.start_polling()
