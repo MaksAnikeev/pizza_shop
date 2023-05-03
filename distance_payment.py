@@ -1,11 +1,8 @@
-import time
-
-import environs
 import requests
 from geopy import distance
+from textwrap import dedent
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
-from telegram.ext import (Filters, MessageHandler, PreCheckoutQueryHandler,
-                          Updater)
+
 
 from moltin import get_entry
 
@@ -53,12 +50,10 @@ def get_min_distance(client_coordinates, pizzerias_params):
 
 def send_alarm_clock_message(context):
     job = context.job
-    alarm_clock_message = 'Приятного аппетита! ' \
-                          'Надеемся что пицца к вам пришла вовремя ' \
-                          'и вы уже наслаждаетесь ее вкусом! \n\n' \
-                          'Если это вдруг не так,' \
-                          ' то свяжитесь с нами по этому телефону' \
-                          ' +7 978 656 44 55 и мы вам вернем деньги.'
+    alarm_clock_message = dedent('''Приятного аппетита! 
+                          Надеемся что пицца к вам пришла вовремя и вы уже наслаждаетесь ее вкусом!
+                          Если это вдруг не так, то свяжитесь с нами по этому телефону
+                          +7 978 656 44 55 и мы вам вернем деньги.''').replace("    ", "")
     keyboard = [[InlineKeyboardButton("Назад к корзине",
                                       callback_data='back_to_cart')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -96,9 +91,9 @@ def set_one_hour_timer(update, context, access_token):
 
     timer_message = context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text='Оплата успешно произведена \n '
-             'Мы заботимся о своих клиентах чтобы они получали свежеприготовленную пиццу.\n'
-             'Если через 1 час вам не привезут пиццу, то мы вернем вам деньги',
+        text=dedent('''Оплата успешно произведена!
+             Мы заботимся о своих клиентах чтобы они получали только свежеприготовленную пиццу.
+             Если через 1 час вам не привезут пиццу, то мы вернем вам деньги''').replace("    ", ""),
         reply_markup=reply_markup)
     context.user_data['timer_message_id'] = timer_message.message_id
     context.job_queue.run_once(send_alarm_clock_message,
