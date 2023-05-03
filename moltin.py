@@ -431,7 +431,7 @@ def get_entries(access_token, slug):
     return response.json()['data']
 
 
-def get_entrie(access_token, slug, id):
+def get_entry(access_token, slug, id):
     """
        Получить один объект модели из магазина
     """

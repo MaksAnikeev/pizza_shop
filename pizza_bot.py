@@ -14,7 +14,7 @@ from distance_payment import (fetch_coordinates, get_min_distance,
                               precheckout_callback, send_payment,
                               successful_payment)
 from moltin import (add_item_to_cart, create_client, delete_item_from_cart,
-                    fill_fieds, get_cart_params, get_entrie, get_entries,
+                    fill_fieds, get_cart_params, get_entry, get_entries,
                     get_product_files, get_product_params,
                     get_products_from_cart, get_products_names,
                     get_products_params, get_products_prices, get_token)
@@ -460,7 +460,7 @@ def send_delivery_message(update, context):
 
     slug = 'customer_address'
     id = entry_client_id
-    client_params = get_entrie(access_token, slug, id)
+    client_params = get_entry(access_token, slug, id)
     context.user_data['client_longitude'] = client_params['data']['client_longitude']
     context.user_data['client_latitude'] = client_params['data']['client_latitude']
 

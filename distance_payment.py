@@ -7,7 +7,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
 from telegram.ext import (Filters, MessageHandler, PreCheckoutQueryHandler,
                           Updater)
 
-from moltin import get_entrie
+from moltin import get_entry
 
 
 def fetch_coordinates(api_yandex_key, address):
@@ -82,7 +82,7 @@ def one_hour_timer(update, context, access_token):
     id = context.user_data['pizzeria_id']
     slug = 'pizzeria'
 
-    courier_tg_id = get_entrie(access_token, slug, id)['data']['telegram_id']
+    courier_tg_id = get_entry(access_token, slug, id)['data']['telegram_id']
     client_address = context.user_data['client_address']
     context.bot.send_message(
         chat_id=courier_tg_id,
