@@ -35,8 +35,8 @@ def start(update, context):
                  InlineKeyboardButton("Моя корзина", callback_data='cart')]]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    context.user_data['first_num'] = 0
-    context.user_data['second_num'] = 8
+    context.user_data['first_index_in_product_menu'] = 0
+    context.user_data['last_index_in_product_menu'] = 8
     try:
         update.message.reply_text('Привет! Сделай выбор:',
                                   reply_markup=reply_markup)
@@ -54,9 +54,9 @@ def start(update, context):
 def send_products_keyboard(update, context):
     query = update.callback_query
     access_token = dispatcher.bot_data['access_token']
-    first_num = context.user_data['first_num']
-    second_num = context.user_data['second_num']
-    products_params = get_products_params(access_token)['data'][first_num:second_num]
+    first_index = context.user_data['first_index_in_product_menu']
+    last_index = context.user_data['last_index_in_product_menu']
+    products_params = get_products_params(access_token)['data'][first_index:last_index]
     products_names = list(chunked(get_products_names(products_params), 2))
     reply_markup = InlineKeyboardMarkup(products_names)
     try:
@@ -84,21 +84,21 @@ def send_products_keyboard(update, context):
 
 def send_product_description(update, context):
     query = update.callback_query
-    num = 8
+    quantity_items_in_menu = 8
     if query.data == 'main_menu':
         return start(update, context)
     elif query.data == 'back_list_product':
-        if context.user_data['first_num'] < num:
-            context.user_data['first_num'] = 0
-            context.user_data['second_num'] = num
+        if context.user_data['first_index_in_product_menu'] < quantity_items_in_menu:
+            context.user_data['first_index_in_product_menu'] = 0
+            context.user_data['last_index_in_product_menu'] = quantity_items_in_menu
             return send_products_keyboard(update, context)
         else:
-            context.user_data['first_num'] -= num
-            context.user_data['second_num'] -= num
+            context.user_data['first_index_in_product_menu'] -= quantity_items_in_menu
+            context.user_data['last_index_in_product_menu'] -= quantity_items_in_menu
             return send_products_keyboard(update, context)
     elif query.data == 'next_list_product':
-        context.user_data['first_num'] += num
-        context.user_data['second_num'] += num
+        context.user_data['first_index_in_product_menu'] += quantity_items_in_menu
+        context.user_data['last_index_in_product_menu'] += quantity_items_in_menu
         return send_products_keyboard(update, context)
 
     keyboard = [[InlineKeyboardButton("1шт", callback_data='1pc'),
