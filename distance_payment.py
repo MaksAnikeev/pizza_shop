@@ -69,7 +69,7 @@ def send_alarm_clock_message(context):
     return 'CART'
 
 
-def one_hour_timer(update, context, access_token):
+def set_one_hour_timer(update, context, access_token):
     due = 60
     keyboard = [[InlineKeyboardButton("Назад к корзине",
                                       callback_data='back_to_cart')]]
@@ -130,7 +130,7 @@ def precheckout_callback(update, context):
 
 def successful_payment(update, context, access_token):
     if context.user_data['delivery_choice'] == 'delivery':
-        return one_hour_timer(update, context, access_token)
+        return set_one_hour_timer(update, context, access_token)
     else:
         message = 'Оплата успешно произведена, ждем вас за пиццей'
         keyboard = [[InlineKeyboardButton("Назад к корзине",
