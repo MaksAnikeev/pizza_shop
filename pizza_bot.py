@@ -230,9 +230,7 @@ def show_cart(update, context):
         ЦЕНА ЗА ЕДИНИЦУ: {"%.2f" % (product["unit_price"]["amount"]/100)} {product["unit_price"]["currency"]}
         КОЛИЧЕСТВО: {product["quantity"]} шт
         СУММА: {"%.2f" % (product["value"]["amount"]/100)} {product["value"]["currency"]}
-        ''').replace("    ", "")
-                     for count, product in enumerate(products_in_cart_params['data'])
-                     ]
+        ''').replace("    ", "") for count, product in enumerate(products_in_cart_params['data'])]
 
     cart_params = get_cart_params(access_token=access_token,
                                   cart_name=tg_id)
