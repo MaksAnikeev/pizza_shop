@@ -29,27 +29,24 @@ def check_token(token_expires):
 
 
 def start(update, context):
-    if not update.callback_query:
-        context.user_data['tg_id'] = update.message.from_user.id
-
     keyboard = [[InlineKeyboardButton("Магазин", callback_data='store'),
                  InlineKeyboardButton("Моя корзина", callback_data='cart')]]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     context.user_data['first_index_in_product_menu'] = 0
     context.user_data['last_index_in_product_menu'] = 8
-    try:
+    if not update.callback_query:
+        context.user_data['tg_id'] = update.message.from_user.id
         update.message.reply_text('Привет! Сделай выбор:',
                                   reply_markup=reply_markup)
         return 'MAIN_MENU'
 
-    except AttributeError:
-        query = update.callback_query
-        context.bot.edit_message_text(text='Привет! Сделай выбор:',
-                                      chat_id=query.message.chat_id,
-                                      message_id=query.message.message_id,
-                                      reply_markup=reply_markup)
-        return 'MAIN_MENU'
+    query = update.callback_query
+    context.bot.edit_message_text(text='Привет! Сделай выбор:',
+                                  chat_id=query.message.chat_id,
+                                  message_id=query.message.message_id,
+                                  reply_markup=reply_markup)
+    return 'MAIN_MENU'
 
 
 def send_products_keyboard(update, context):
@@ -60,27 +57,25 @@ def send_products_keyboard(update, context):
     products_params = get_products_params(access_token)['data'][first_index:last_index]
     products_names = list(chunked(get_products_names(products_params), 2))
     reply_markup = InlineKeyboardMarkup(products_names)
-    try:
+    if first_index != 0:
         context.bot.edit_message_text(
-            text='Выбери товар из магазина:',
-            chat_id=query.message.chat_id,
-            message_id=query.message.message_id,
-            reply_markup=reply_markup
-        )
+                text='Выбери товар из магазина:',
+                chat_id=query.message.chat_id,
+                message_id=query.message.message_id,
+                reply_markup=reply_markup
+            )
         return "PRODUCT"
-
-    except:
-        context.bot.send_message(
+    context.bot.send_message(
             text='Выбери товар из магазина:',
             chat_id=query.message.chat_id,
             reply_markup=reply_markup
         )
 
-        context.bot.delete_message(
+    context.bot.delete_message(
             chat_id=query.message.chat_id,
             message_id=query.message.message_id
         )
-        return "PRODUCT"
+    return "PRODUCT"
 
 
 def send_product_description(update, context):
@@ -136,28 +131,8 @@ def send_product_description(update, context):
                             <b>Цена в за единицу товара:</b>
                             {product_price}руб
                             """).replace("    ", "")
-    try:
-        product_file_id = product_params['data']['relationships']['main_image']['data']['id']
-        access_token = dispatcher.bot_data['access_token']
-        product_image_params = get_product_files(access_token,
-                                                 file_id=product_file_id)
-        product_image_url = product_image_params['data']['link']['href']
-        product_image = requests.get(product_image_url)
-        product_image.raise_for_status()
 
-        query.message.reply_photo(
-            product_image.content,
-            caption=product_message,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML)
-
-        context.bot.delete_message(
-            chat_id=query.message.chat_id,
-            message_id=query.message.message_id
-        )
-        return "ADD_CART"
-
-    except TypeError:
+    if not product_params['data']['relationships']['main_image']['data']:
         context.bot.edit_message_text(
             text=product_message,
             chat_id=query.message.chat_id,
@@ -165,6 +140,26 @@ def send_product_description(update, context):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML)
         return "ADD_CART"
+
+    product_file_id = product_params['data']['relationships']['main_image']['data']['id']
+    access_token = dispatcher.bot_data['access_token']
+    product_image_params = get_product_files(access_token,
+                                                 file_id=product_file_id)
+    product_image_url = product_image_params['data']['link']['href']
+    product_image = requests.get(product_image_url)
+    product_image.raise_for_status()
+
+    query.message.reply_photo(
+            product_image.content,
+            caption=product_message,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML)
+
+    context.bot.delete_message(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id
+        )
+    return "ADD_CART"
 
 
 def add_product_to_cart(update, context):
@@ -195,28 +190,18 @@ def add_product_to_cart(update, context):
             {product_quantity}шт
             <b>Успешно добавлен в вашу корзину</b>
             """).replace("    ", "")
-        try:
-            context.bot.edit_message_text(
-                text=add_cart_message,
-                chat_id=query.message.chat_id,
-                message_id=query.message.message_id,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML
-            )
-            return "STORE"
-        except:
-            context.bot.send_message(
-                text=add_cart_message,
-                chat_id=query.message.chat_id,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML
-            )
+        context.bot.send_message(
+                    text=add_cart_message,
+                    chat_id=query.message.chat_id,
+                    reply_markup=reply_markup,
+                    parse_mode=ParseMode.HTML
+                )
 
-            context.bot.delete_message(
-                chat_id=query.message.chat_id,
-                message_id=query.message.message_id
-            )
-            return "STORE"
+        context.bot.delete_message(
+                    chat_id=query.message.chat_id,
+                    message_id=query.message.message_id
+                )
+        return "STORE"
 
 
 def show_cart(update, context):
@@ -357,16 +342,18 @@ def get_address(update, context):
     access_token = dispatcher.bot_data['access_token']
     address = update.message.text
     context.user_data['client_address'] = address
-    try:
-        message = update.message
+    message = update.message
+    if message.location:
         lat = message.location.latitude
         lon = message.location.longitude
         client_coordinates = (lon, lat)
-    except AttributeError:
-        try:
-            lon, lat = fetch_coordinates(api_yandex_key, address)
-            client_coordinates = (lon, lat)
-        except TypeError:
+    else:
+        client_coordinates = fetch_coordinates(api_yandex_key, address)
+        if client_coordinates:
+            lon = client_coordinates[0]
+            lat = client_coordinates[1]
+            client_coordinates = tuple(client_coordinates)
+        else:
             context.bot.send_message(
                 chat_id=update.effective_chat.id,
                 text='Вы ввели некорректный адрес,'

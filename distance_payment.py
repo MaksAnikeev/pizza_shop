@@ -22,7 +22,8 @@ def fetch_coordinates(api_yandex_key, address):
 
     most_relevant = found_places[0]
     lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
-    return lon, lat
+    client_coordinates = [lon, lat]
+    return client_coordinates
 
 
 def get_user_dictance(user):
