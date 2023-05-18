@@ -113,7 +113,30 @@ def create_products_description(access_token, token_expires, price_list_id):
         access_token,
         price_list_id=price_list_id
     )
-    keyboard_elements = []
+    keyboard_elements = [{"title": 'Меню',
+                        "image_url": 'https://media-cdn.tripadvisor.com/media/photo-s/1b/5d/8e/89/caption.jpg',
+                        "subtitle": 'Здесь вы можете выбрать один из вариантов',
+                        # "default_action": {
+                        #   "type": "web_url",
+                        #   "url": 'https://cdn.shopify.com/s/files/1/1661/9575/products/669A6046_2048x.jpg?v=1606125995',
+                        #   "webview_height_ratio": "tall"
+                        # },
+                        "buttons": [
+                          {
+                            "type": "postback",
+                            "title": "Корзина",
+                            "payload": "cart"
+                          },
+                          {
+                            "type": "postback",
+                            "title": "Акции",
+                            "payload": "discount"
+                          },
+                          {
+                            "type": "postback",
+                            "title": "Сделать заказ",
+                            "payload": "order"
+                          }]}]
     for product_params in products_params:
         product_name = product_params['attributes']['name']
         product_description = product_params['attributes']['description']
@@ -130,28 +153,19 @@ def create_products_description(access_token, token_expires, price_list_id):
                                                      file_id=product_file_id)
             product_image_url = product_image_params['data']['link']['href']
         else:
-            product_image_url = 'https://............jpg'
+            product_image_url = 'https://golden-sun.ru/image/catalog/programs/brazilskaya-popka-kupon-aktsiya-skidka-deshevo-kiev.jpg'
 
         keyboard_element = {
                         "title": product_name,
                         "image_url": product_image_url,
                         "subtitle": f'Цена {product_price} \n{product_description}',
-                        "default_action": {
-                          "type": "web_url",
-                          "url": 'https://cdn.shopiv=1606125995',
-                          "webview_height_ratio": "tall"
-                        },
                         "buttons": [
                           {
                             "type": "postback",
                             "title": "Добавить в корзину",
                             "payload": product_sku
-                          },
-                          {
-                            "type": "postback",
-                            "title": "Корзина",
-                            "payload": "DEVELOPER_DEFINED_PAYLOAD"
-                          }]}
+                          }
+                          ]}
         keyboard_elements.append(keyboard_element)
     return keyboard_elements
 
