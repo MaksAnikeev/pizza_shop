@@ -8,7 +8,8 @@ from moltin import (add_item_to_cart, create_client, delete_item_from_cart,
                     fill_fieds, get_cart_params, get_entry, get_entries,
                     get_product_files, get_product_params,
                     get_products_from_cart, get_products_names,
-                    get_products_params, get_products_prices, get_token)
+                    get_products_params, get_products_prices, get_token,
+                    get_hierarchy_children)
 from pprint import pprint
 
 app = Flask(__name__)
@@ -108,7 +109,10 @@ def create_products_description(access_token, token_expires, price_list_id):
     if not check_token(token_expires):
         access_token, token_expires = get_token(client_id, client_secret)
 
-    products_params = get_products_params(access_token)['data'][0:5]
+    node_id_basic = env.str("BASIC_NODE_ID")
+    hierarchy_id = env.str("HIERARCHY_ID")
+    products_params = get_hierarchy_children(access_token, hierarchy_id,
+                                  node_id=node_id_basic)['data']
     products_prices = get_products_prices(
         access_token,
         price_list_id=price_list_id
@@ -141,14 +145,16 @@ def create_products_description(access_token, token_expires, price_list_id):
         product_name = product_params['attributes']['name']
         product_description = product_params['attributes']['description']
         product_sku = product_params['attributes']['sku']
+        product_id = product_params['id']
 
         for price in products_prices['data']:
             if price['attributes']['sku'] == product_sku:
                 product_price = "%.2f" % (price['attributes']['currencies']['RUB']['amount']/100)
 
+        product_info = get_product_params(access_token, product_id)['data']
 
-        if product_params['relationships']['main_image']['data']:
-            product_file_id = product_params['relationships']['main_image']['data']['id']
+        if product_info['relationships']['main_image']['data']:
+            product_file_id = product_info['relationships']['main_image']['data']['id']
             product_image_params = get_product_files(access_token,
                                                      file_id=product_file_id)
             product_image_url = product_image_params['data']['link']['href']
@@ -171,11 +177,11 @@ def create_products_description(access_token, token_expires, price_list_id):
 
 
 if __name__ == '__main__':
-    # env = environs.Env()
-    # env.read_env()
     app.run(debug=True)
+    # hierarchy_id = '5644aa5d-cf68-4dde-9fe0-3eb2c6118bc7'
+    # node_id_hot = '86028403-e62b-4992-b39f-d0e08974cca8'
+    # node_id_hearty = 'd3e32c20-3269-475f-85ee-d97ce96b6437'
+    # node_id_basic = 'b41d0763-08db-48a5-913a-a359995be831'
 
-    # client_id = env.str("CLIENT_ID")
-    # client_secret = env.str("CLIENT_SECRET")
-    # price_list_id = env.str("PRICE_LIST_ID")
-    # access_token, token_expires = get_token(client_id, client_secret)
+
+

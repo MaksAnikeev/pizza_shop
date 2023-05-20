@@ -78,6 +78,22 @@ def get_product_files(access_token, file_id):
     return response.json()
 
 
+def get_hierarchy_children(access_token, hierarchy_id, node_id):
+    """
+    Получить продукты из заданной категории
+    """
+    headers = {
+            'Authorization': f'Bearer {access_token}',
+        }
+    response = requests.get(
+        f'https://api.moltin.com/pcm/hierarchies/'
+        f'{hierarchy_id}/nodes/{node_id}/products',
+        headers=headers,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
 def create_client(access_token, client_name, email):
     """
     Создать клиента в базе по е-мейлу
