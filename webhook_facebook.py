@@ -297,6 +297,8 @@ def add_product_to_cart(sender_id, message_text):
             params=params, headers=headers, json=request_content
         )
         response.raise_for_status()
+        if message_text == 'Добавить еще одну':
+            return show_cart(sender_id, message_text)
         return 'START'
 
 
@@ -306,6 +308,7 @@ def show_cart(sender_id, message_text):
 
     products_in_cart_params = get_products_from_cart(access_token=access_token,
                                                      cart_name=facebook_id)
+    pprint(products_in_cart_params)
 
     cart_params = get_cart_params(access_token=access_token,
                                   cart_name=facebook_id)
@@ -346,8 +349,10 @@ def show_cart(sender_id, message_text):
     for product_params in products_in_cart_params['data']:
         product_name = product_params['name']
         product_sku = product_params['sku']
+        product_quantity = product_params['quantity']
         product_description = product_params['description']
         product_id = product_params['product_id']
+        product_delete_id = product_params['id']
         product_price = 'нет в наличие'
         for price in products_prices['data']:
             if price['attributes']['sku'] == product_sku:
@@ -366,7 +371,8 @@ def show_cart(sender_id, message_text):
         keyboard_element = {
                         "title": product_name,
                         "image_url": product_image_url,
-                        "subtitle": f'Цена {product_price} \n{product_description}',
+                        "subtitle": f'Цена за одну {product_price} \n Количество {product_quantity}'
+                                    f' \n{product_description}',
                         "buttons": [
                           {
                             "type": "postback",
@@ -376,7 +382,7 @@ def show_cart(sender_id, message_text):
                           {
                             "type": "postback",
                             "title": "Убрать из корзины",
-                            "payload": product_id
+                            "payload": product_delete_id
                           }
                           ]}
         keyboard_elements.append(keyboard_element)
@@ -406,6 +412,16 @@ def show_cart(sender_id, message_text):
     return "CART"
 
 
+def delete_product_from_cart(sender_id, message_text):
+    facebook_id = sender_id
+    access_token = db.get('access_token')
+    product_id = db.get('payload')
+
+    delete_item_from_cart(access_token=access_token,
+                          cart_name=facebook_id,
+                          product_id=product_id)
+    return show_cart(sender_id, message_text)
+
 
 def handle_users_reply(sender_id, message_text):
     db = get_database_connection()
@@ -420,6 +436,7 @@ def handle_users_reply(sender_id, message_text):
         'CART': show_cart,
         'DISCOUNT': send_discount,
         'ADD_TO_CART': add_product_to_cart,
+        'DEL_FROM_CART': delete_product_from_cart,
     }
     recorded_state = db.get(f'facebook-{sender_id}')
     print(recorded_state)
@@ -436,9 +453,12 @@ def handle_users_reply(sender_id, message_text):
             message_text == "Острые" or message_text == "Сытные":
         user_state = "START"
         print(4)
-    elif message_text == 'Добавить в корзину':
+    elif message_text == 'Добавить в корзину' or message_text == 'Добавить еще одну':
         user_state = "ADD_TO_CART"
         print(5)
+    elif message_text == 'Убрать из корзины':
+        user_state = "DEL_FROM_CART"
+        print(51)
     else:
         user_state = recorded_state
         print(6)
