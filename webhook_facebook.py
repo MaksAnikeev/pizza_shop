@@ -4,6 +4,7 @@ import requests
 import environs
 from flask import Flask, request
 from datetime import datetime
+from textwrap import dedent
 import redis
 from moltin import (add_item_to_cart, create_client, delete_item_from_cart,
                     fill_fieds, get_cart_params, get_entry, get_entries,
@@ -88,14 +89,14 @@ def webhook():
                     sender_id = messaging_event["sender"]["id"]
                     recipient_id = messaging_event["recipient"]["id"]
                     message_text = messaging_event["message"]["text"]
-                    # print(message_text)
-                    # send_message(sender_id, message_text)
-                    # send_keyboard(sender_id, message_text)
                     handle_users_reply(sender_id, message_text)
                 if messaging_event.get('postback'):
                     sender_id = messaging_event["sender"]["id"]
                     message_text = messaging_event['postback']['title']
-                    db.set('node_id', messaging_event['postback']['payload'])
+                    if message_text == "Основное меню" or message_text == "Особые" or \
+                         message_text == "Острые" or message_text == "Сытные":
+                        db.set('node_id', messaging_event['postback']['payload'])
+                    db.set('payload', messaging_event['postback']['payload'])
                     handle_users_reply(sender_id, message_text)
     return "ok", 200
 
@@ -166,7 +167,6 @@ def send_keyboard(sender_id, message_text):
         "https://graph.facebook.com/v2.6/me/messages",
         params=params, headers=headers, json=json_data
     )
-    pprint(response.json())
     response.raise_for_status()
     return "START"
 
@@ -232,7 +232,7 @@ def create_products_description(access_token, price_list_id):
                           {
                             "type": "postback",
                             "title": "Добавить в корзину",
-                            "payload": product_sku
+                            "payload": product_id
                           }
                           ]}
         keyboard_elements.append(keyboard_element)
@@ -271,8 +271,143 @@ def create_products_description(access_token, price_list_id):
     return keyboard_elements
 
 
+def add_product_to_cart(sender_id, message_text):
+    facebook_id = sender_id
+    access_token = db.get('access_token')
+    product_id = db.get('payload')
+
+    response = add_item_to_cart(access_token=access_token,
+                                product_id=product_id,
+                                quantity=1,
+                                cart_name=facebook_id)
+
+    if response.ok:
+        params = {"access_token": env.str("PAGE_ACCESS_TOKEN")}
+        headers = {"Content-Type": "application/json"}
+        request_content = {
+            "recipient": {
+                "id": sender_id
+            },
+            "message": {
+                "text": 'Выбранный вами продукт успешно добавлен в вашу корзину'
+            }
+        }
+        response = requests.post(
+            "https://graph.facebook.com/v2.6/me/messages",
+            params=params, headers=headers, json=request_content
+        )
+        response.raise_for_status()
+        return 'START'
+
+
+def show_cart(sender_id, message_text):
+    facebook_id = sender_id
+    access_token = db.get('access_token')
+
+    products_in_cart_params = get_products_from_cart(access_token=access_token,
+                                                     cart_name=facebook_id)
+
+    cart_params = get_cart_params(access_token=access_token,
+                                  cart_name=facebook_id)
+    cart_sum_num = cart_params["data"]["meta"]["display_price"]["with_tax"]["formatted"]
+    cart_sum_number = cart_sum_num.replace('.', '').\
+        replace(' руб', '').replace(',00', '').replace(' ', '')
+    db.set('cart_sum_num', cart_sum_number)
+    cart_sum = dedent(f'''
+            ИТОГО {cart_sum_num}
+            ''').replace("    ", "")
+    db.set('cart_sum', cart_sum)
+
+    price_list_id = db.get('price_list_id').replace(' ', '')
+    products_prices = get_products_prices(
+        access_token,
+        price_list_id=price_list_id)
+
+    keyboard_elements = [{"title": 'Корзина',
+                          "image_url": 'https://www.umi-cms.ru/images/cms/data/articles/korzina-internet-magazina.jpg',
+                          "subtitle": f'Ваш заказ на сумму {cart_sum_num}',
+                          "buttons": [
+                              {
+                                  "type": "postback",
+                                  "title": "Самовывоз",
+                                  "payload": "pickup"
+                              },
+                              {
+                                  "type": "postback",
+                                  "title": "Доставка",
+                                  "payload": "delivery"
+                              },
+                              {
+                                  "type": "postback",
+                                  "title": "Основное меню",
+                                  "payload": node_id_basic
+                              }]}]
+
+    for product_params in products_in_cart_params['data']:
+        product_name = product_params['name']
+        product_sku = product_params['sku']
+        product_description = product_params['description']
+        product_id = product_params['product_id']
+        product_price = 'нет в наличие'
+        for price in products_prices['data']:
+            if price['attributes']['sku'] == product_sku:
+                product_price = "%.2f" % (price['attributes']['currencies']['RUB']['amount']/100)
+
+        product_info = get_product_params(access_token, product_id)['data']
+
+        if product_info['relationships']['main_image']['data']:
+            product_file_id = product_info['relationships']['main_image']['data']['id']
+            product_image_params = get_product_files(access_token,
+                                                     file_id=product_file_id)
+            product_image_url = product_image_params['data']['link']['href']
+        else:
+            product_image_url = 'https://golden-sun.ru/image/catalog/programs/brazilskaya-popka-kupon-aktsiya-skidka-deshevo-kiev.jpg'
+
+        keyboard_element = {
+                        "title": product_name,
+                        "image_url": product_image_url,
+                        "subtitle": f'Цена {product_price} \n{product_description}',
+                        "buttons": [
+                          {
+                            "type": "postback",
+                            "title": "Добавить еще одну",
+                            "payload": product_id
+                          },
+                          {
+                            "type": "postback",
+                            "title": "Убрать из корзины",
+                            "payload": product_id
+                          }
+                          ]}
+        keyboard_elements.append(keyboard_element)
+
+    params = {"access_token": env.str("PAGE_ACCESS_TOKEN")}
+    headers = {"Content-Type": "application/json"}
+
+    json_data = {
+        "recipient": {
+            "id": sender_id
+        },
+        "message": {
+            "attachment": {
+                "type": "template",
+                "payload": {
+                    "template_type": "generic",
+                    "elements": keyboard_elements
+                },
+            },
+        }
+    }
+    response = requests.post(
+        "https://graph.facebook.com/v2.6/me/messages",
+        params=params, headers=headers, json=json_data
+    )
+    response.raise_for_status()
+    return "CART"
+
+
+
 def handle_users_reply(sender_id, message_text):
-    print(message_text)
     db = get_database_connection()
     token_expires = int(db.get('token_expires').replace(' ', ''))
     if not check_token(token_expires):
@@ -282,11 +417,11 @@ def handle_users_reply(sender_id, message_text):
 
     states_functions = {
         'START': send_keyboard,
-        'CART': send_message,
-        'DISCOUNT': send_discount
-
+        'CART': show_cart,
+        'DISCOUNT': send_discount,
+        'ADD_TO_CART': add_product_to_cart,
     }
-    recorded_state = db.get(sender_id)
+    recorded_state = db.get(f'facebook-{sender_id}')
     print(recorded_state)
     if not recorded_state or recorded_state not in states_functions.keys():
         user_state = "START"
@@ -300,16 +435,18 @@ def handle_users_reply(sender_id, message_text):
     elif message_text == "Основное меню" or message_text == "Особые" or\
             message_text == "Острые" or message_text == "Сытные":
         user_state = "START"
-        print(31)
+        print(4)
+    elif message_text == 'Добавить в корзину':
+        user_state = "ADD_TO_CART"
+        print(5)
     else:
         user_state = recorded_state
-        print(4)
+        print(6)
     state_handler = states_functions[user_state]
     next_state = state_handler(sender_id, message_text)
-    # next_state = states_functions[user_state]
     print(states_functions[user_state])
-    db.set(sender_id, next_state)
-    print(5)
+    db.set(f'facebook-{sender_id}', next_state)
+    print(7)
 
 
 def get_database_connection():
