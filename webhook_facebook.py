@@ -1,19 +1,17 @@
-import os
-
-import requests
-import environs
-from flask import Flask, request
-from datetime import datetime, timedelta
-from textwrap import dedent
-import redis
 import json
-from moltin import (add_item_to_cart, create_client, delete_item_from_cart,
-                    fill_fieds, get_cart_params, get_entry, get_entries,
-                    get_product_files, get_product_params,
-                    get_products_from_cart, get_products_names,
-                    get_products_params, get_products_prices, get_token,
-                    get_hierarchy_children)
-from pprint import pprint
+from datetime import datetime
+from textwrap import dedent
+
+import environs
+import redis
+import requests
+from flask import Flask, request
+
+from moltin import (add_item_to_cart, delete_item_from_cart, get_cart_params,
+                    get_hierarchy_children, get_product_files,
+                    get_product_params, get_products_from_cart,
+                    get_products_prices, get_token)
+
 
 app = Flask(__name__)
 
@@ -28,7 +26,6 @@ node_id_basic = env.str("NODE_ID_BASIC")
 node_id_hot = env.str("NODE_ID_HOT")
 node_id_hearty = env.str("NODE_ID_HEARTY")
 node_id_special = env.str("NODE_ID_SPETIAL")
-
 
 hierarchy_id = env.str("HIERARCHY_ID")
 
@@ -66,9 +63,11 @@ def check_token(token_expires):
 @app.route('/', methods=['GET'])
 def verify():
     """
-    При верификации вебхука у Facebook он отправит запрос на этот адрес. На него нужно ответить VERIFY_TOKEN.
+    При верификации вебхука у Facebook он отправит запрос на этот адрес.
+    На него нужно ответить VERIFY_TOKEN.
     """
-    if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
+    if request.args.get("hub.mode") == "subscribe" and\
+            request.args.get("hub.challenge"):
         if not request.args.get("hub.verify_token") == env.str("VERIFY_TOKEN"):
             return "Verification token mismatch", 403
         return request.args["hub.challenge"], 200
@@ -82,20 +81,18 @@ def webhook():
     Основной вебхук, на который будут приходить сообщения от Facebook.
     """
     data = request.get_json()
-    pprint(data)
     if data["object"] == "page":
         for entry in data["entry"]:
             for messaging_event in entry["messaging"]:
                 if messaging_event.get("message"):
                     sender_id = messaging_event["sender"]["id"]
-                    recipient_id = messaging_event["recipient"]["id"]
                     message_text = messaging_event["message"]["text"]
                     handle_users_reply(sender_id, message_text)
                 if messaging_event.get('postback'):
                     sender_id = messaging_event["sender"]["id"]
                     message_text = messaging_event['postback']['title']
                     if message_text == "Основное меню" or message_text == "Особые" or \
-                         message_text == "Острые" or message_text == "Сытные":
+                            message_text == "Острые" or message_text == "Сытные":
                         db.set('node_id', messaging_event['postback']['payload'])
                     db.set('payload', messaging_event['postback']['payload'])
                     handle_users_reply(sender_id, message_text)
@@ -151,7 +148,6 @@ def send_keyboard(sender_id, message_text):
     else:
         node_id = db.get('node_id')
 
-    # elements = create_products_description(access_token, price_list_id, node_id)
     elements = get_keyboard_elements(access_token, price_list_id,
                                      node_id, message_text)
 
@@ -162,13 +158,13 @@ def send_keyboard(sender_id, message_text):
         "recipient": {
             "id": sender_id
         },
-        "message":{
-            "attachment":{
-              "type":"template",
-              "payload":{
-                "template_type":"generic",
-                "elements": elements
-              },
+        "message": {
+            "attachment": {
+                "type": "template",
+                "payload": {
+                    "template_type": "generic",
+                    "elements": elements
+                },
             },
         }
     }
@@ -180,34 +176,33 @@ def send_keyboard(sender_id, message_text):
     return "START"
 
 
-
 def create_products_description(access_token, price_list_id, node_id):
     hierarchy_id = db.get('hierarchy_id')
     products_params = get_hierarchy_children(access_token, hierarchy_id,
-                                  node_id=node_id)['data']
+                                             node_id=node_id)['data']
     products_prices = get_products_prices(
         access_token,
         price_list_id=price_list_id
     )
     keyboard_elements = [{"title": 'Меню',
-                        "image_url": 'https://media-cdn.tripadvisor.com/media/photo-s/1b/5d/8e/89/caption.jpg',
-                        "subtitle": 'Здесь вы можете выбрать один из вариантов',
-                        "buttons": [
-                          {
-                            "type": "postback",
-                            "title": "Корзина",
-                            "payload": "cart"
-                          },
-                          {
-                            "type": "postback",
-                            "title": "Акции",
-                            "payload": "discount"
-                          },
-                          {
-                            "type": "postback",
-                            "title": "Сделать заказ",
-                            "payload": "order"
-                          }]}]
+                          "image_url": 'https://media-cdn.tripadvisor.com/media/photo-s/1b/5d/8e/89/caption.jpg',
+                          "subtitle": 'Здесь вы можете выбрать один из вариантов',
+                          "buttons": [
+                              {
+                                  "type": "postback",
+                                  "title": "Корзина",
+                                  "payload": "cart"
+                              },
+                              {
+                                  "type": "postback",
+                                  "title": "Акции",
+                                  "payload": "discount"
+                              },
+                              {
+                                  "type": "postback",
+                                  "title": "Сделать заказ",
+                                  "payload": "order"
+                              }]}]
     for product_params in products_params:
         product_name = product_params['attributes']['name']
         product_description = product_params['attributes']['description']
@@ -216,7 +211,7 @@ def create_products_description(access_token, price_list_id, node_id):
         product_price = 'нет в наличие'
         for price in products_prices['data']:
             if price['attributes']['sku'] == product_sku:
-                product_price = "%.2f" % (price['attributes']['currencies']['RUB']['amount']/100)
+                product_price = "%.2f" % (price['attributes']['currencies']['RUB']['amount'] / 100)
 
         product_info = get_product_params(access_token, product_id)['data']
 
@@ -229,55 +224,57 @@ def create_products_description(access_token, price_list_id, node_id):
             product_image_url = 'https://golden-sun.ru/image/catalog/programs/brazilskaya-popka-kupon-aktsiya-skidka-deshevo-kiev.jpg'
 
         keyboard_element = {
-                        "title": product_name,
-                        "image_url": product_image_url,
-                        "subtitle": f'Цена {product_price} \n{product_description}',
-                        "buttons": [
-                          {
-                            "type": "postback",
-                            "title": "Добавить в корзину",
-                            "payload": product_id
-                          }
-                          ]}
+            "title": product_name,
+            "image_url": product_image_url,
+            "subtitle": f'Цена {product_price} \n{product_description}',
+            "buttons": [
+                {
+                    "type": "postback",
+                    "title": "Добавить в корзину",
+                    "payload": product_id
+                }
+            ]}
         keyboard_elements.append(keyboard_element)
 
     category_page = {"title": 'Не нашли нужную пиццу',
-                        "image_url": 'https://primepizza.ru/uploads/position/large_0c07c6fd5c4dcadddaf4a2f1a2c218760b20c396.jpg',
-                        "subtitle": 'Оставшиеся пиццы можно посмотреть выбрав одну'
-                                    'из следующих категорий',
-                        "buttons": [
-                          {
-                            "type": "postback",
-                            "title": "Сытные",
-                            "payload": node_id_hearty
-                          },
-                          {
-                            "type": "postback",
-                            "title": "Острые",
-                            "payload": node_id_hot
-                          },
-                          {
-                            "type": "postback",
-                            "title": "Особые",
-                            "payload": node_id_special
-                          }]}
-    keyboard_elements.append(category_page)
-    main_meny_page = {"title": 'Если хотите вернуться к основному меню пицц',
                      "image_url": 'https://primepizza.ru/uploads/position/large_0c07c6fd5c4dcadddaf4a2f1a2c218760b20c396.jpg',
+                     "subtitle": 'Оставшиеся пиццы можно посмотреть выбрав одну'
+                                 'из следующих категорий',
                      "buttons": [
                          {
                              "type": "postback",
-                             "title": "Основное меню",
-                             "payload": node_id_basic
-                         }
-                        ]}
+                             "title": "Сытные",
+                             "payload": node_id_hearty
+                         },
+                         {
+                             "type": "postback",
+                             "title": "Острые",
+                             "payload": node_id_hot
+                         },
+                         {
+                             "type": "postback",
+                             "title": "Особые",
+                             "payload": node_id_special
+                         }]}
+    keyboard_elements.append(category_page)
+    main_meny_page = {"title": 'Если хотите вернуться к основному меню пицц',
+                      "image_url": 'https://primepizza.ru/uploads/position/large_0c07c6fd5c4dcadddaf4a2f1a2c218760b20c396.jpg',
+                      "buttons": [
+                          {
+                              "type": "postback",
+                              "title": "Основное меню",
+                              "payload": node_id_basic
+                          }
+                      ]}
     keyboard_elements.append(main_meny_page)
     return keyboard_elements
 
 
 def get_keyboard_elements(access_token, price_list_id, node_id, message_text):
     if not db.get("keyboard_elements_main"):
-        keyboard_elements = create_products_description(access_token, price_list_id, node_id)
+        keyboard_elements = create_products_description(access_token,
+                                                        price_list_id,
+                                                        node_id)
         keyboard_elements_str = json.dumps(keyboard_elements)
         db.set("keyboard_elements_main", keyboard_elements_str)
 
@@ -291,8 +288,10 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text):
 
             time_diff = datetime.now() - datetime.strptime(db.get("keyboard_elements_main_time"),
                                                            '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds/60 > 20:
-                keyboard_elements = create_products_description(access_token, price_list_id, node_id)
+            if time_diff.seconds / 60 > 20:
+                keyboard_elements = create_products_description(access_token,
+                                                                price_list_id,
+                                                                node_id)
                 keyboard_elements_str = json.dumps(keyboard_elements)
                 db.set("keyboard_elements_main", keyboard_elements_str)
                 store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
@@ -303,7 +302,9 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text):
 
         elif message_text == "Особые":
             if not db.get("keyboard_elements_special"):
-                keyboard_elements = create_products_description(access_token, price_list_id, node_id)
+                keyboard_elements = create_products_description(access_token,
+                                                                price_list_id,
+                                                                node_id)
                 keyboard_elements_str = json.dumps(keyboard_elements)
                 db.set("keyboard_elements_special", keyboard_elements_str)
                 store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
@@ -314,8 +315,10 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text):
 
             time_diff = datetime.now() - datetime.strptime(db.get("keyboard_elements_special_time"),
                                                            '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds/60 > 20:
-                keyboard_elements = create_products_description(access_token, price_list_id, node_id)
+            if time_diff.seconds / 60 > 20:
+                keyboard_elements = create_products_description(access_token,
+                                                                price_list_id,
+                                                                node_id)
                 keyboard_elements_str = json.dumps(keyboard_elements)
                 db.set("keyboard_elements_special", keyboard_elements_str)
                 store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
@@ -326,7 +329,9 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text):
 
         elif message_text == "Острые":
             if not db.get("keyboard_elements_hot"):
-                keyboard_elements = create_products_description(access_token, price_list_id, node_id)
+                keyboard_elements = create_products_description(access_token,
+                                                                price_list_id,
+                                                                node_id)
                 keyboard_elements_str = json.dumps(keyboard_elements)
                 db.set("keyboard_elements_hot", keyboard_elements_str)
 
@@ -337,8 +342,10 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text):
             cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
             time_diff = datetime.now() - datetime.strptime(db.get("keyboard_elements_hot_time"),
                                                            '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds/60 > 20:
-                keyboard_elements = create_products_description(access_token, price_list_id, node_id)
+            if time_diff.seconds / 60 > 20:
+                keyboard_elements = create_products_description(access_token,
+                                                                price_list_id,
+                                                                node_id)
                 keyboard_elements_str = json.dumps(keyboard_elements)
                 db.set("keyboard_elements_hot", keyboard_elements_str)
                 store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
@@ -349,7 +356,9 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text):
 
         elif message_text == "Сытные":
             if not db.get("keyboard_elements_hearty"):
-                keyboard_elements = create_products_description(access_token, price_list_id, node_id)
+                keyboard_elements = create_products_description(access_token,
+                                                                price_list_id,
+                                                                node_id)
                 keyboard_elements_str = json.dumps(keyboard_elements)
                 db.set("keyboard_elements_hearty", keyboard_elements_str)
                 store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
@@ -359,8 +368,10 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text):
             cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
             time_diff = datetime.now() - datetime.strptime(db.get("keyboard_elements_hot_time"),
                                                            '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds/60 > 20:
-                keyboard_elements = create_products_description(access_token, price_list_id, node_id)
+            if time_diff.seconds / 60 > 20:
+                keyboard_elements = create_products_description(access_token,
+                                                                price_list_id,
+                                                                node_id)
                 keyboard_elements_str = json.dumps(keyboard_elements)
                 db.set("keyboard_elements_hearty", keyboard_elements_str)
                 store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
@@ -373,8 +384,10 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text):
             cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
             time_diff = datetime.now() - datetime.strptime(db.get("keyboard_elements_main_time"),
                                                            '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds/60 > 20:
-                keyboard_elements = create_products_description(access_token, price_list_id, node_id)
+            if time_diff.seconds / 60 > 20:
+                keyboard_elements = create_products_description(access_token,
+                                                                price_list_id,
+                                                                node_id)
                 keyboard_elements_str = json.dumps(keyboard_elements)
                 db.set("keyboard_elements_main", keyboard_elements_str)
                 store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
@@ -421,12 +434,11 @@ def show_cart(sender_id, message_text):
 
     products_in_cart_params = get_products_from_cart(access_token=access_token,
                                                      cart_name=facebook_id)
-    pprint(products_in_cart_params)
 
     cart_params = get_cart_params(access_token=access_token,
                                   cart_name=facebook_id)
     cart_sum_num = cart_params["data"]["meta"]["display_price"]["with_tax"]["formatted"]
-    cart_sum_number = cart_sum_num.replace('.', '').\
+    cart_sum_number = cart_sum_num.replace('.', ''). \
         replace(' руб', '').replace(',00', '').replace(' ', '')
     db.set('cart_sum_num', cart_sum_number)
     cart_sum = dedent(f'''
@@ -469,7 +481,7 @@ def show_cart(sender_id, message_text):
         product_price = 'нет в наличие'
         for price in products_prices['data']:
             if price['attributes']['sku'] == product_sku:
-                product_price = "%.2f" % (price['attributes']['currencies']['RUB']['amount']/100)
+                product_price = "%.2f" % (price['attributes']['currencies']['RUB']['amount'] / 100)
 
         product_info = get_product_params(access_token, product_id)['data']
 
@@ -482,22 +494,23 @@ def show_cart(sender_id, message_text):
             product_image_url = 'https://golden-sun.ru/image/catalog/programs/brazilskaya-popka-kupon-aktsiya-skidka-deshevo-kiev.jpg'
 
         keyboard_element = {
-                        "title": product_name,
-                        "image_url": product_image_url,
-                        "subtitle": f'Цена за одну {product_price} \n Количество {product_quantity}'
-                                    f' \n{product_description}',
-                        "buttons": [
-                          {
-                            "type": "postback",
-                            "title": "Добавить еще одну",
-                            "payload": product_id
-                          },
-                          {
-                            "type": "postback",
-                            "title": "Убрать из корзины",
-                            "payload": product_delete_id
-                          }
-                          ]}
+            "title": product_name,
+            "image_url": product_image_url,
+            "subtitle": f'Цена за одну {product_price} '
+                        f'\n Количество {product_quantity}'
+                        f' \n{product_description}',
+            "buttons": [
+                {
+                    "type": "postback",
+                    "title": "Добавить еще одну",
+                    "payload": product_id
+                },
+                {
+                    "type": "postback",
+                    "title": "Убрать из корзины",
+                    "payload": product_delete_id
+                }
+            ]}
         keyboard_elements.append(keyboard_element)
 
     params = {"access_token": env.str("PAGE_ACCESS_TOKEN")}
@@ -552,35 +565,25 @@ def handle_users_reply(sender_id, message_text):
         'DEL_FROM_CART': delete_product_from_cart,
     }
     recorded_state = db.get(f'facebook-{sender_id}')
-    print(recorded_state)
     if not recorded_state or recorded_state not in states_functions.keys():
         user_state = "START"
-        print(1)
     elif message_text == "Акции":
         user_state = "DISCOUNT"
-        print(2)
     elif message_text == "Корзина":
         user_state = "CART"
-        print(3)
-    elif message_text == "Основное меню" or message_text == "Особые" or\
+    elif message_text == "Основное меню" or message_text == "Особые" or \
             message_text == "Острые" or message_text == "Сытные":
         user_state = "START"
-        print(4)
-    elif message_text == 'Добавить в корзину' or message_text == 'Добавить еще одну':
+    elif message_text == 'Добавить в корзину' or\
+            message_text == 'Добавить еще одну':
         user_state = "ADD_TO_CART"
-        print(5)
     elif message_text == 'Убрать из корзины':
         user_state = "DEL_FROM_CART"
-        print(51)
     else:
-        # user_state = recorded_state
         user_state = "START"
-        print(6)
     state_handler = states_functions[user_state]
     next_state = state_handler(sender_id, message_text)
-    print(states_functions[user_state])
     db.set(f'facebook-{sender_id}', next_state)
-    print(7)
 
 
 def get_database_connection():
@@ -599,21 +602,3 @@ def get_database_connection():
 
 if __name__ == '__main__':
     app.run(debug=True)
-    # hierarchy_id = '5644aa5d-cf68-4dde-9fe0-3eb2c6118bc7'
-    # node_id_hot = '86028403-e62b-4992-b39f-d0e08974cca8'
-    # node_id_hearty = 'd3e32c20-3269-475f-85ee-d97ce96b6437'
-    # node_id_special = '53911d3a-0e99-4905-bdb9-3f9bc182e4d2'
-    # node_id_basic = 'b41d0763-08db-48a5-913a-a359995be831'
-
-    # headers = {
-    #     'Authorization': f'Bearer {access_token}',
-    # }
-    #
-    # response = requests.get(
-    #     f'https://api.moltin.com/pcm/hierarchies/{hierarchy_id}/children',
-    #     headers=headers,
-    # )
-    # pprint(response.json())
-
-
-
