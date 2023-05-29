@@ -87,8 +87,8 @@ def webhook():
                     message_text = messaging_event['postback']['title']
                     if message_text == "Основное меню" or message_text == "Особые" or \
                             message_text == "Острые" or message_text == "Сытные":
-                        db.set('node_id', messaging_event['postback']['payload'])
-                    db.set('payload', messaging_event['postback']['payload'])
+                        db.set(f'{sender_id} node_id', messaging_event['postback']['payload'])
+                    db.set(f'{sender_id} payload', messaging_event['postback']['payload'])
                 handle_users_reply(sender_id, message_text)
     return "ok", 200
 
@@ -134,11 +134,11 @@ def send_discount(sender_id, message_text):
 def send_keyboard(sender_id, message_text):
     global access_token
 
-    if not db.get('node_id'):
+    if not db.get(f'{sender_id} node_id'):
         node_id = node_id_basic
-        db.set('node_id', node_id)
+        db.set(f'{sender_id} node_id', node_id)
     else:
-        node_id = db.get('node_id')
+        node_id = db.get(f'{sender_id} node_id')
 
     elements = get_keyboard_elements(access_token, price_list_id,
                                      node_id, message_text)
@@ -391,7 +391,7 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text):
 def add_product_to_cart(sender_id, message_text):
     global access_token
     facebook_id = sender_id
-    product_id = db.get('payload')
+    product_id = db.get(f'{sender_id} payload')
 
     response = add_item_to_cart(access_token=access_token,
                                 product_id=product_id,
@@ -431,11 +431,11 @@ def show_cart(sender_id, message_text):
     cart_sum_num = cart_params["data"]["meta"]["display_price"]["with_tax"]["formatted"]
     cart_sum_number = cart_sum_num.replace('.', ''). \
         replace(' руб', '').replace(',00', '').replace(' ', '')
-    db.set('cart_sum_num', cart_sum_number)
+    db.set(f'{sender_id} cart_sum_num', cart_sum_number)
     cart_sum = dedent(f'''
             ИТОГО {cart_sum_num}
             ''').replace("    ", "")
-    db.set('cart_sum', cart_sum)
+    db.set(f'{sender_id} cart_sum', cart_sum)
 
     products_prices = get_products_prices(
         access_token,
@@ -531,7 +531,7 @@ def show_cart(sender_id, message_text):
 def delete_product_from_cart(sender_id, message_text):
     global access_token
     facebook_id = sender_id
-    product_id = db.get('payload')
+    product_id = db.get(f'{sender_id} payload')
 
     delete_item_from_cart(access_token=access_token,
                           cart_name=facebook_id,
