@@ -82,7 +82,6 @@ def webhook():
                 if messaging_event.get("message"):
                     sender_id = messaging_event["sender"]["id"]
                     message_text = messaging_event["message"]["text"]
-                    handle_users_reply(sender_id, message_text)
                 if messaging_event.get('postback'):
                     sender_id = messaging_event["sender"]["id"]
                     message_text = messaging_event['postback']['title']
@@ -90,7 +89,7 @@ def webhook():
                             message_text == "Острые" or message_text == "Сытные":
                         db.set('node_id', messaging_event['postback']['payload'])
                     db.set('payload', messaging_event['postback']['payload'])
-                    handle_users_reply(sender_id, message_text)
+                handle_users_reply(sender_id, message_text)
     return "ok", 200
 
 
