@@ -47,11 +47,6 @@ def get_database_connection():
 
 
 db = get_database_connection()
-db.set('access_token', access_token)
-db.set('token_expires', token_expires)
-db.set('price_list_id', price_list_id)
-db.set('node_id_basic', node_id_basic)
-db.set('hierarchy_id', hierarchy_id)
 
 
 def check_token(token_expires):
@@ -138,12 +133,10 @@ def send_discount(sender_id, message_text):
 
 
 def send_keyboard(sender_id, message_text):
-    db = get_database_connection()
-    access_token = db.get('access_token')
-    price_list_id = db.get('price_list_id').replace(' ', '')
+    global access_token
 
     if not db.get('node_id'):
-        node_id = db.get('node_id_basic')
+        node_id = node_id_basic
         db.set('node_id', node_id)
     else:
         node_id = db.get('node_id')
@@ -177,7 +170,6 @@ def send_keyboard(sender_id, message_text):
 
 
 def create_products_description(access_token, price_list_id, node_id):
-    hierarchy_id = db.get('hierarchy_id')
     products_params = get_hierarchy_children(access_token, hierarchy_id,
                                              node_id=node_id)['data']
     products_prices = get_products_prices(
@@ -398,8 +390,8 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text):
 
 
 def add_product_to_cart(sender_id, message_text):
+    global access_token
     facebook_id = sender_id
-    access_token = db.get('access_token')
     product_id = db.get('payload')
 
     response = add_item_to_cart(access_token=access_token,
@@ -429,8 +421,8 @@ def add_product_to_cart(sender_id, message_text):
 
 
 def show_cart(sender_id, message_text):
+    global access_token
     facebook_id = sender_id
-    access_token = db.get('access_token')
 
     products_in_cart_params = get_products_from_cart(access_token=access_token,
                                                      cart_name=facebook_id)
@@ -446,7 +438,6 @@ def show_cart(sender_id, message_text):
             ''').replace("    ", "")
     db.set('cart_sum', cart_sum)
 
-    price_list_id = db.get('price_list_id').replace(' ', '')
     products_prices = get_products_prices(
         access_token,
         price_list_id=price_list_id)
@@ -539,8 +530,8 @@ def show_cart(sender_id, message_text):
 
 
 def delete_product_from_cart(sender_id, message_text):
+    global access_token
     facebook_id = sender_id
-    access_token = db.get('access_token')
     product_id = db.get('payload')
 
     delete_item_from_cart(access_token=access_token,
@@ -550,12 +541,10 @@ def delete_product_from_cart(sender_id, message_text):
 
 
 def handle_users_reply(sender_id, message_text):
-    db = get_database_connection()
-    token_expires = int(db.get('token_expires').replace(' ', ''))
+    global token_expires
+    global access_token
     if not check_token(token_expires):
         access_token, token_expires = get_token(client_id, client_secret)
-        db.set('access_token', access_token)
-        db.set('token_expires', token_expires)
 
     states_functions = {
         'START': send_keyboard,
