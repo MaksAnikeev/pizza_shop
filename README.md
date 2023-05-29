@@ -14,7 +14,7 @@
 ![max example](gifs/tg_bot.gif)
 
 ФБ бот
-![max2 example](gifs/fb_bot.gif)
+![max example](gifs/fb_bot.gif)
 
 ## Запуск:
 
