@@ -95,25 +95,6 @@ def webhook():
     return "ok", 200
 
 
-def send_message(sender_id, message_text):
-    params = {"access_token": env.str("PAGE_ACCESS_TOKEN")}
-    headers = {"Content-Type": "application/json"}
-    request_content = {
-        "recipient": {
-            "id": sender_id
-        },
-        "message": {
-            "text": message_text
-        }
-    }
-    response = requests.post(
-        "https://graph.facebook.com/v2.6/me/messages",
-        params=params, headers=headers, json=request_content
-    )
-    response.raise_for_status()
-    return 'START'
-
-
 def send_discount(sender_id, message_text):
     params = {"access_token": env.str("PAGE_ACCESS_TOKEN")}
     headers = {"Content-Type": "application/json"}
@@ -130,7 +111,8 @@ def send_discount(sender_id, message_text):
         params=params, headers=headers, json=request_content
     )
     response.raise_for_status()
-    return 'START'
+    db.set(f'facebook-{sender_id}', "DISCOUNT")
+    return 'DISCOUNT'
 
 
 def send_keyboard(sender_id, message_text):
@@ -167,7 +149,8 @@ def send_keyboard(sender_id, message_text):
         params=params, headers=headers, json=json_data
     )
     response.raise_for_status()
-    return "START"
+
+    return 'START'
 
 
 def create_products_description(access_token, price_list_id, node_id):
@@ -527,6 +510,7 @@ def show_cart(sender_id, message_text):
         params=params, headers=headers, json=json_data
     )
     response.raise_for_status()
+    db.set(f'facebook-{sender_id}', "CART")
     return "CART"
 
 
@@ -551,24 +535,19 @@ def handle_users_reply(sender_id, message_text):
         'START': send_keyboard,
         'CART': show_cart,
         'DISCOUNT': send_discount,
-        'ADD_TO_CART': add_product_to_cart,
-        'DEL_FROM_CART': delete_product_from_cart,
     }
     recorded_state = db.get(f'facebook-{sender_id}')
     if not recorded_state or recorded_state not in states_functions.keys():
         user_state = "START"
-    elif message_text == "Акции":
-        user_state = "DISCOUNT"
+    elif message_text == "Акции" and recorded_state == "START":
+        user_state = send_discount(sender_id, message_text)
     elif message_text == "Корзина":
         user_state = "CART"
-    elif message_text == "Основное меню" or message_text == "Особые" or \
-            message_text == "Острые" or message_text == "Сытные":
-        user_state = "START"
-    elif message_text == 'Добавить в корзину' or\
-            message_text == 'Добавить еще одну':
-        user_state = "ADD_TO_CART"
-    elif message_text == 'Убрать из корзины':
-        user_state = "DEL_FROM_CART"
+    elif (message_text == 'Добавить в корзину' or message_text == 'Добавить еще одну') and \
+            (recorded_state == "START" or recorded_state == "CART"):
+        user_state = add_product_to_cart(sender_id, message_text)
+    elif message_text == 'Убрать из корзины' and recorded_state == "CART":
+        user_state = delete_product_from_cart(sender_id, message_text)
     else:
         user_state = "START"
     state_handler = states_functions[user_state]
