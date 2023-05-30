@@ -29,6 +29,8 @@ node_id_special = env.str("NODE_ID_SPETIAL")
 
 hierarchy_id = env.str("HIERARCHY_ID")
 
+changing_time = int(env.str("CHANGING_TIME", 20))
+
 access_token, token_expires = get_token(client_id, client_secret)
 
 
@@ -273,13 +275,13 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text, se
         db.set(f'{sender_id} keyboard_elements_main_time', store_dt)
         return keyboard_elements
     else:
-        if message_text == "Основное меню":
+        if node_id == node_id_basic:
             cached_keyboard_elements_str = db.get(f"{sender_id} keyboard_elements_main")
             cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
 
             time_diff = datetime.now() - datetime.strptime(db.get(f"{sender_id} keyboard_elements_main_time"),
                                                            '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds / 60 > 20:
+            if time_diff.seconds / 60 > changing_time:
                 keyboard_elements = create_products_description(access_token,
                                                                 price_list_id,
                                                                 node_id)
@@ -291,7 +293,7 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text, se
                 keyboard_elements = cached_keyboard_elements
             return keyboard_elements
 
-        elif message_text == "Особые":
+        elif node_id == node_id_special:
             if not db.get(f"{sender_id} keyboard_elements_special"):
                 keyboard_elements = create_products_description(access_token,
                                                                 price_list_id,
@@ -306,7 +308,7 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text, se
 
             time_diff = datetime.now() - datetime.strptime(db.get(f"{sender_id} keyboard_elements_special_time"),
                                                            '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds / 60 > 20:
+            if time_diff.seconds / 60 > changing_time:
                 keyboard_elements = create_products_description(access_token,
                                                                 price_list_id,
                                                                 node_id)
@@ -318,7 +320,7 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text, se
                 keyboard_elements = cached_keyboard_elements
             return keyboard_elements
 
-        elif message_text == "Острые":
+        elif node_id == node_id_hot:
             if not db.get(f"{sender_id} keyboard_elements_hot"):
                 keyboard_elements = create_products_description(access_token,
                                                                 price_list_id,
@@ -333,7 +335,7 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text, se
             cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
             time_diff = datetime.now() - datetime.strptime(db.get(f"{sender_id} keyboard_elements_hot_time"),
                                                            '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds / 60 > 20:
+            if time_diff.seconds / 60 > changing_time:
                 keyboard_elements = create_products_description(access_token,
                                                                 price_list_id,
                                                                 node_id)
@@ -345,7 +347,7 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text, se
                 keyboard_elements = cached_keyboard_elements
             return keyboard_elements
 
-        elif message_text == "Сытные":
+        elif node_id == node_id_hearty:
             if not db.get(f"{sender_id} keyboard_elements_hearty"):
                 keyboard_elements = create_products_description(access_token,
                                                                 price_list_id,
@@ -359,7 +361,7 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text, se
             cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
             time_diff = datetime.now() - datetime.strptime(db.get(f"{sender_id} keyboard_elements_hot_time"),
                                                            '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds / 60 > 20:
+            if time_diff.seconds / 60 > changing_time:
                 keyboard_elements = create_products_description(access_token,
                                                                 price_list_id,
                                                                 node_id)
@@ -375,7 +377,7 @@ def get_keyboard_elements(access_token, price_list_id, node_id, message_text, se
             cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
             time_diff = datetime.now() - datetime.strptime(db.get(f"{sender_id} keyboard_elements_main_time"),
                                                            '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds / 60 > 20:
+            if time_diff.seconds / 60 > changing_time:
                 keyboard_elements = create_products_description(access_token,
                                                                 price_list_id,
                                                                 node_id)
