@@ -84,6 +84,7 @@ def webhook():
                 if messaging_event.get("message"):
                     sender_id = messaging_event["sender"]["id"]
                     message_text = messaging_event["message"]["text"]
+                    db.set(f'{sender_id} node_id', node_id_basic)
                 if messaging_event.get('postback'):
                     sender_id = messaging_event["sender"]["id"]
                     message_text = messaging_event['postback']['title']
@@ -247,130 +248,47 @@ def create_products_description(access_token, price_list_id, node_id):
 
 
 def get_keyboard_elements(access_token, price_list_id, node_id, message_text, sender_id):
-    if not db.get(f'{sender_id} keyboard_elements_main'):
+    if node_id == node_id_basic:
+        category = 'main'
+        return create_category_keyboard(sender_id, node_id, category, access_token, price_list_id)
+    elif node_id == node_id_special:
+        category = 'special'
+        return create_category_keyboard(sender_id, node_id, category, access_token, price_list_id)
+    elif node_id == node_id_hot:
+        category = 'hot'
+        return create_category_keyboard(sender_id, node_id, category, access_token, price_list_id)
+    elif node_id == node_id_hearty:
+        category = 'hearty'
+        return create_category_keyboard(sender_id, node_id, category, access_token, price_list_id)
+
+
+def create_category_keyboard(sender_id, node_id, category, access_token, price_list_id):
+    if not db.get(f"{sender_id} keyboard_elements_{category}"):
         keyboard_elements = create_products_description(access_token,
                                                         price_list_id,
                                                         node_id)
         keyboard_elements_str = json.dumps(keyboard_elements)
-        db.set(f'{sender_id} keyboard_elements_main', keyboard_elements_str)
-
+        db.set(f"{sender_id} keyboard_elements_{category}", keyboard_elements_str)
         store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
-        db.set(f'{sender_id} keyboard_elements_main_time', store_dt)
+        db.set(f"{sender_id} keyboard_elements_{category}_time", store_dt)
         return keyboard_elements
+    cached_keyboard_elements_str = db.get(f"{sender_id} keyboard_elements_{category}")
+    cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
+
+    time_diff = datetime.now() - datetime.strptime(db.get(f"{sender_id} keyboard_elements_{category}_time"),
+                                                           '%Y-%m-%d %H:%M:%S.%f')
+    if time_diff.seconds / 60 > changing_time:
+        keyboard_elements = create_products_description(access_token,
+                                                        price_list_id,
+                                                        node_id)
+        keyboard_elements_str = json.dumps(keyboard_elements)
+        db.set(f"{sender_id} keyboard_elements_{category}", keyboard_elements_str)
+        store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
+        db.set(f"{sender_id} keyboard_elements_{category}_time", store_dt)
     else:
-        if node_id == node_id_basic:
-            cached_keyboard_elements_str = db.get(f"{sender_id} keyboard_elements_main")
-            cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
+        keyboard_elements = cached_keyboard_elements
+    return keyboard_elements
 
-            time_diff = datetime.now() - datetime.strptime(db.get(f"{sender_id} keyboard_elements_main_time"),
-                                                           '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds / 60 > changing_time:
-                keyboard_elements = create_products_description(access_token,
-                                                                price_list_id,
-                                                                node_id)
-                keyboard_elements_str = json.dumps(keyboard_elements)
-                db.set(f"{sender_id} keyboard_elements_main", keyboard_elements_str)
-                store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
-                db.set(f"{sender_id} keyboard_elements_main_time", store_dt)
-            else:
-                keyboard_elements = cached_keyboard_elements
-            return keyboard_elements
-
-        elif node_id == node_id_special:
-            if not db.get(f"{sender_id} keyboard_elements_special"):
-                keyboard_elements = create_products_description(access_token,
-                                                                price_list_id,
-                                                                node_id)
-                keyboard_elements_str = json.dumps(keyboard_elements)
-                db.set(f"{sender_id} keyboard_elements_special", keyboard_elements_str)
-                store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
-                db.set(f"{sender_id} keyboard_elements_special_time", store_dt)
-                return keyboard_elements
-            cached_keyboard_elements_str = db.get(f"{sender_id} keyboard_elements_special")
-            cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
-
-            time_diff = datetime.now() - datetime.strptime(db.get(f"{sender_id} keyboard_elements_special_time"),
-                                                           '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds / 60 > changing_time:
-                keyboard_elements = create_products_description(access_token,
-                                                                price_list_id,
-                                                                node_id)
-                keyboard_elements_str = json.dumps(keyboard_elements)
-                db.set(f"{sender_id} keyboard_elements_special", keyboard_elements_str)
-                store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
-                db.set(f"{sender_id} keyboard_elements_special_time", store_dt)
-            else:
-                keyboard_elements = cached_keyboard_elements
-            return keyboard_elements
-
-        elif node_id == node_id_hot:
-            if not db.get(f"{sender_id} keyboard_elements_hot"):
-                keyboard_elements = create_products_description(access_token,
-                                                                price_list_id,
-                                                                node_id)
-                keyboard_elements_str = json.dumps(keyboard_elements)
-                db.set(f"{sender_id} keyboard_elements_hot", keyboard_elements_str)
-
-                store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
-                db.set(f"{sender_id} keyboard_elements_hot_time", store_dt)
-                return keyboard_elements
-            cached_keyboard_elements_str = db.get(f"{sender_id} keyboard_elements_hot")
-            cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
-            time_diff = datetime.now() - datetime.strptime(db.get(f"{sender_id} keyboard_elements_hot_time"),
-                                                           '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds / 60 > changing_time:
-                keyboard_elements = create_products_description(access_token,
-                                                                price_list_id,
-                                                                node_id)
-                keyboard_elements_str = json.dumps(keyboard_elements)
-                db.set(f"{sender_id} keyboard_elements_hot", keyboard_elements_str)
-                store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
-                db.set(f"{sender_id} keyboard_elements_hot_time", store_dt)
-            else:
-                keyboard_elements = cached_keyboard_elements
-            return keyboard_elements
-
-        elif node_id == node_id_hearty:
-            if not db.get(f"{sender_id} keyboard_elements_hearty"):
-                keyboard_elements = create_products_description(access_token,
-                                                                price_list_id,
-                                                                node_id)
-                keyboard_elements_str = json.dumps(keyboard_elements)
-                db.set(f"{sender_id} keyboard_elements_hearty", keyboard_elements_str)
-                store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
-                db.set(f"{sender_id} keyboard_elements_hearty_time", store_dt)
-                return keyboard_elements
-            cached_keyboard_elements_str = db.get(f"{sender_id} keyboard_elements_hearty")
-            cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
-            time_diff = datetime.now() - datetime.strptime(db.get(f"{sender_id} keyboard_elements_hot_time"),
-                                                           '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds / 60 > changing_time:
-                keyboard_elements = create_products_description(access_token,
-                                                                price_list_id,
-                                                                node_id)
-                keyboard_elements_str = json.dumps(keyboard_elements)
-                db.set(f"{sender_id} keyboard_elements_hearty", keyboard_elements_str)
-                store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
-                db.set(f"{sender_id} keyboard_elements_hearty_time", store_dt)
-            else:
-                keyboard_elements = cached_keyboard_elements
-            return keyboard_elements
-        else:
-            cached_keyboard_elements_str = db.get(f"{sender_id} keyboard_elements_main")
-            cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
-            time_diff = datetime.now() - datetime.strptime(db.get(f"{sender_id} keyboard_elements_main_time"),
-                                                           '%Y-%m-%d %H:%M:%S.%f')
-            if time_diff.seconds / 60 > changing_time:
-                keyboard_elements = create_products_description(access_token,
-                                                                price_list_id,
-                                                                node_id)
-                keyboard_elements_str = json.dumps(keyboard_elements)
-                db.set(f"{sender_id} keyboard_elements_main", keyboard_elements_str)
-                store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
-                db.set(f"{sender_id} keyboard_elements_main_time", store_dt)
-            else:
-                keyboard_elements = cached_keyboard_elements
-            return keyboard_elements
 
 
 def add_product_to_cart(sender_id, message_text):
@@ -535,6 +453,8 @@ def handle_users_reply(sender_id, message_text):
         'START': send_keyboard,
         'CART': show_cart,
         'DISCOUNT': send_discount,
+        'DELETE_PRODUCT': delete_product_from_cart,
+        'ADD_PRODUCT': add_product_to_cart
     }
     recorded_state = db.get(f'facebook-{sender_id}')
     if not recorded_state or recorded_state not in states_functions.keys():
@@ -545,9 +465,9 @@ def handle_users_reply(sender_id, message_text):
         user_state = "CART"
     elif (message_text == 'Добавить в корзину' or message_text == 'Добавить еще одну') and \
             (recorded_state == "START" or recorded_state == "CART"):
-        user_state = add_product_to_cart(sender_id, message_text)
+        user_state = 'ADD_PRODUCT'
     elif message_text == 'Убрать из корзины' and recorded_state == "CART":
-        user_state = delete_product_from_cart(sender_id, message_text)
+        user_state = 'DELETE_PRODUCT'
     else:
         user_state = "START"
     state_handler = states_functions[user_state]
