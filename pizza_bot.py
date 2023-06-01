@@ -118,7 +118,7 @@ def send_product_description(update, context):
         access_token,
         price_list_id=price_list_id
     )
-
+    product_price = 'нет в наличие'
     for price in products_prices['data']:
         if price['attributes']['sku'] == product_sku:
             product_price = "%.2f" % (price['attributes']['currencies']['RUB']['amount']/100)
