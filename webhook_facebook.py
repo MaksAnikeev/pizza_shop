@@ -15,8 +15,6 @@ from moltin import (add_item_to_cart, delete_item_from_cart, get_cart_params,
 
 app = Flask(__name__)
 
-_database = None
-
 env = environs.Env()
 env.read_env()
 client_id = env.str("CLIENT_ID")
@@ -35,17 +33,15 @@ access_token, token_expires = get_token(client_id, client_secret)
 
 
 def get_database_connection():
-    global _database
-    if _database is None:
-        database_password = env.str("DATABASE_PASSWORD")
-        database_host = env.str("DATABASE_HOST")
-        database_port = env.str("DATABASE_PORT")
-        _database = redis.StrictRedis(host=database_host,
-                                      port=database_port,
-                                      password=database_password,
-                                      charset="utf-8",
-                                      decode_responses=True)
-    return _database
+    database_password = env.str("DATABASE_PASSWORD")
+    database_host = env.str("DATABASE_HOST")
+    database_port = env.str("DATABASE_PORT")
+    db = redis.StrictRedis(host=database_host,
+                           port=database_port,
+                           password=database_password,
+                           charset="utf-8",
+                           decode_responses=True)
+    return db
 
 
 db = get_database_connection()
