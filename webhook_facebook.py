@@ -10,8 +10,9 @@ from flask import Flask, request
 from moltin import (add_item_to_cart, delete_item_from_cart, get_cart_params,
                     get_hierarchy_children, get_product_files,
                     get_product_params, get_products_from_cart,
-                    get_products_prices, get_token)
+                    get_products_prices, get_token, get_nodes)
 
+from pprint import pprint
 
 app = Flask(__name__)
 
@@ -88,6 +89,7 @@ def webhook():
                             message_text == "Острые" or message_text == "Сытные":
                         db.set(f'{sender_id} node_id', messaging_event['postback']['payload'])
                     db.set(f'{sender_id} payload', messaging_event['postback']['payload'])
+                    print(messaging_event['postback']['payload'])
                 handle_users_reply(sender_id, message_text)
     return "ok", 200
 
@@ -152,6 +154,9 @@ def send_keyboard(sender_id, message_text):
 def create_products_description(access_token, price_list_id, node_id):
     products_params = get_hierarchy_children(access_token, hierarchy_id,
                                              node_id=node_id)['data']
+
+    categories_params = get_nodes(access_token, hierarchy_id)
+
     products_prices = get_products_prices(
         access_token,
         price_list_id=price_list_id
@@ -208,33 +213,26 @@ def create_products_description(access_token, price_list_id, node_id):
             ]}
         keyboard_elements.append(keyboard_element)
 
-    category_page = {"title": 'Не нашли нужную пиццу',
-                     "image_url": 'https://primepizza.ru/uploads/position/large_0c07c6fd5c4dcadddaf4a2f1a2c218760b20c396.jpg',
-                     "subtitle": 'Оставшиеся пиццы можно посмотреть выбрав одну'
-                                 'из следующих категорий',
-                     "buttons": [
-                         {
-                             "type": "postback",
-                             "title": "Сытные",
-                             "payload": node_id_hearty
-                         },
-                         {
-                             "type": "postback",
-                             "title": "Острые",
-                             "payload": node_id_hot
-                         },
-                         {
-                             "type": "postback",
-                             "title": "Особые",
-                             "payload": node_id_special
-                         }]}
-    keyboard_elements.append(category_page)
+    for categories_param in categories_params:
+        buttons = [{
+                    "type": "postback",
+                    "title": category_param['name'],
+                    "payload": category_param['id']} for category_param in categories_param]
+
+        category_page = {"title": 'Не нашли нужную пиццу',
+                         "image_url": 'https://primepizza.ru/uploads/position/large_0c07c6fd5c4dcadddaf4a2f1a2c218760b20c396.jpg',
+                         "subtitle": 'Оставшиеся пиццы можно посмотреть выбрав одну'
+                                     'из следующих категорий',
+                         "buttons": buttons}
+
+        keyboard_elements.append(category_page)
+
     main_meny_page = {"title": 'Если хотите вернуться к основному меню пицц',
                       "image_url": 'https://primepizza.ru/uploads/position/large_0c07c6fd5c4dcadddaf4a2f1a2c218760b20c396.jpg',
                       "buttons": [
                           {
                               "type": "postback",
-                              "title": "Основное меню",
+                              "title": "Главное меню",
                               "payload": node_id_basic
                           }
                       ]}

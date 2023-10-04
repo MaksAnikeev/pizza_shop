@@ -2,6 +2,7 @@ from pprint import pprint
 
 import requests
 from telegram import InlineKeyboardButton
+from more_itertools import chunked
 
 
 def get_token(client_id, client_secret):
@@ -76,6 +77,32 @@ def get_product_files(access_token, file_id):
                             headers=headers)
     response.raise_for_status()
     return response.json()
+
+
+def get_nodes(access_token, hierarchy_id):
+    """
+    Получить названия категории в иерархии
+    """
+    headers = {
+            'Authorization': f'Bearer {access_token}',
+        }
+    response = requests.get(
+        f'https://api.moltin.com/pcm/hierarchies/{hierarchy_id}/children',
+        headers=headers,
+    )
+    response.raise_for_status()
+    response.params = response.json()['data']
+
+    node_params = list(chunked([{
+        'name': node_param['attributes']['name'],
+        'id': node_param['id']}
+        for node_param in response.params], 2))
+    return node_params
+
+
+# access_token = '1502afd2d6c86fdc2d42c87b599ec8d48587d1c9'
+# hierarchy_id = '5644aa5d-cf68-4dde-9fe0-3eb2c6118bc7'
+# pprint(get_nodes(access_token, hierarchy_id))
 
 
 def get_hierarchy_children(access_token, hierarchy_id, node_id):
