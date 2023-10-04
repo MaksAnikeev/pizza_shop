@@ -10,9 +10,7 @@ from flask import Flask, request
 from moltin import (add_item_to_cart, delete_item_from_cart, get_cart_params,
                     get_hierarchy_children, get_product_files,
                     get_product_params, get_products_from_cart,
-                    get_products_prices, get_token, get_nodes)
-
-from pprint import pprint
+                    get_products_prices, get_token, get_nodes, get_nodes_names)
 
 app = Flask(__name__)
 
@@ -22,9 +20,6 @@ client_id = env.str("CLIENT_ID")
 client_secret = env.str("CLIENT_SECRET")
 price_list_id = env.str("PRICE_LIST_ID")
 node_id_basic = env.str("NODE_ID_BASIC")
-node_id_hot = env.str("NODE_ID_HOT")
-node_id_hearty = env.str("NODE_ID_HEARTY")
-node_id_special = env.str("NODE_ID_SPETIAL")
 
 hierarchy_id = env.str("HIERARCHY_ID")
 
@@ -85,11 +80,9 @@ def webhook():
                 if messaging_event.get('postback'):
                     sender_id = messaging_event["sender"]["id"]
                     message_text = messaging_event['postback']['title']
-                    if message_text == "Основное меню" or message_text == "Особые" or \
-                            message_text == "Острые" or message_text == "Сытные":
+                    if message_text in get_nodes_names(access_token, hierarchy_id):
                         db.set(f'{sender_id} node_id', messaging_event['postback']['payload'])
                     db.set(f'{sender_id} payload', messaging_event['postback']['payload'])
-                    print(messaging_event['postback']['payload'])
                 handle_users_reply(sender_id, message_text)
     return "ok", 200
 
@@ -123,7 +116,9 @@ def send_keyboard(sender_id, message_text):
     else:
         node_id = db.get(f'{sender_id} node_id')
 
-    elements = get_keyboard_elements(access_token, price_list_id, node_id)
+    elements = get_keyboard_elements(access_token=access_token,
+                                     price_list_id=price_list_id,
+                                     node_id=node_id)
 
     params = {"access_token": env.str("PAGE_ACCESS_TOKEN")}
     headers = {"Content-Type": "application/json"}
@@ -240,48 +235,32 @@ def create_products_description(access_token, price_list_id, node_id):
     return keyboard_elements
 
 
-def get_keyboard_elements(access_token, price_list_id, node_id):
-    if node_id == node_id_basic:
-        category = 'main'
-        return create_category_keyboard(node_id, category, access_token, price_list_id)
-    elif node_id == node_id_special:
-        category = 'special'
-        return create_category_keyboard(node_id, category, access_token, price_list_id)
-    elif node_id == node_id_hot:
-        category = 'hot'
-        return create_category_keyboard(node_id, category, access_token, price_list_id)
-    elif node_id == node_id_hearty:
-        category = 'hearty'
-        return create_category_keyboard(node_id, category, access_token, price_list_id)
-
-
-def create_category_keyboard(node_id, category, access_token, price_list_id):
-    if not db.get(f"keyboard_elements_{category}"):
+def get_keyboard_elements(node_id, access_token, price_list_id):
+    if not db.get(f"keyboard_elements_{node_id}"):
         keyboard_elements = create_products_description(access_token,
                                                         price_list_id,
                                                         node_id)
         keyboard_elements_str = json.dumps(keyboard_elements)
-        db.set(f"keyboard_elements_{category}", keyboard_elements_str)
+        db.set(f"keyboard_elements_{node_id}", keyboard_elements_str)
         store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
-        db.set(f"keyboard_elements_{category}_time", store_dt)
+        db.set(f"keyboard_elements_{node_id}_time", store_dt)
         return keyboard_elements
-    cached_keyboard_elements_str = db.get(f"keyboard_elements_{category}")
+    cached_keyboard_elements_str = db.get(f"keyboard_elements_{node_id}")
     cached_keyboard_elements = json.loads(cached_keyboard_elements_str)
 
-    time_diff = datetime.now() - datetime.strptime(db.get(f"keyboard_elements_{category}_time"),
+    time_diff = datetime.now() - datetime.strptime(db.get(f"keyboard_elements_{node_id}_time"),
                                                            '%Y-%m-%d %H:%M:%S.%f')
     if time_diff.seconds / 60 > changing_time:
         keyboard_elements = create_products_description(access_token,
                                                         price_list_id,
                                                         node_id)
         keyboard_elements_str = json.dumps(keyboard_elements)
-        db.set(f"keyboard_elements_{category}", keyboard_elements_str)
+        db.set(f"keyboard_elements_{node_id}", keyboard_elements_str)
         store_dt = datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
-        db.set(f"keyboard_elements_{category}_time", store_dt)
+        db.set(f"keyboard_elements_{node_id}_time", store_dt)
     else:
         keyboard_elements = cached_keyboard_elements
     return keyboard_elements
-
 
 
 def add_product_to_cart(sender_id, message_text):

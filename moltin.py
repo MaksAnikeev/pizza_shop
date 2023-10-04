@@ -81,7 +81,7 @@ def get_product_files(access_token, file_id):
 
 def get_nodes(access_token, hierarchy_id):
     """
-    Получить названия категории в иерархии
+    Получить названия и ид категории в иерархии
     """
     headers = {
             'Authorization': f'Bearer {access_token}',
@@ -100,9 +100,22 @@ def get_nodes(access_token, hierarchy_id):
     return node_params
 
 
-# access_token = '1502afd2d6c86fdc2d42c87b599ec8d48587d1c9'
-# hierarchy_id = '5644aa5d-cf68-4dde-9fe0-3eb2c6118bc7'
-# pprint(get_nodes(access_token, hierarchy_id))
+def get_nodes_names(access_token, hierarchy_id):
+    """
+    Получить названия категории в иерархии
+    """
+    headers = {
+            'Authorization': f'Bearer {access_token}',
+        }
+    response = requests.get(
+        f'https://api.moltin.com/pcm/hierarchies/{hierarchy_id}/children',
+        headers=headers,
+    )
+    response.raise_for_status()
+    response.params = response.json()['data']
+
+    node_names = [node_param['attributes']['name'] for node_param in response.params]
+    return node_names
 
 
 def get_hierarchy_children(access_token, hierarchy_id, node_id):
