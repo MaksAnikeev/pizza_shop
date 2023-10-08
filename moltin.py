@@ -91,12 +91,12 @@ def get_nodes(access_token, hierarchy_id):
         headers=headers,
     )
     response.raise_for_status()
-    response.params = response.json()['data']
+    response_params = response.json()['data']
 
     node_params = list(chunked([{
         'name': node_param['attributes']['name'],
         'id': node_param['id']}
-        for node_param in response.params], 2))
+        for node_param in response_params], 2))
     return node_params
 
 
@@ -112,9 +112,9 @@ def get_nodes_names(access_token, hierarchy_id):
         headers=headers,
     )
     response.raise_for_status()
-    response.params = response.json()['data']
+    response_params = response.json()['data']
 
-    node_names = [node_param['attributes']['name'] for node_param in response.params]
+    node_names = [node_param['attributes']['name'] for node_param in response_params]
     return node_names
 
 
