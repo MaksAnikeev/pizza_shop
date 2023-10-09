@@ -2,6 +2,7 @@ from pprint import pprint
 
 import requests
 from telegram import InlineKeyboardButton
+from more_itertools import chunked
 
 
 def get_token(client_id, client_secret):
@@ -74,6 +75,61 @@ def get_product_files(access_token, file_id):
         }
     response = requests.get(f'https://api.moltin.com/v2/files/{file_id}',
                             headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+
+def get_nodes(access_token, hierarchy_id):
+    """
+    Получить названия и ид категории в иерархии
+    """
+    headers = {
+            'Authorization': f'Bearer {access_token}',
+        }
+    response = requests.get(
+        f'https://api.moltin.com/pcm/hierarchies/{hierarchy_id}/children',
+        headers=headers,
+    )
+    response.raise_for_status()
+    response_params = response.json()['data']
+
+    node_params = list(chunked([{
+        'name': node_param['attributes']['name'],
+        'id': node_param['id']}
+        for node_param in response_params], 2))
+    return node_params
+
+
+def get_nodes_names(access_token, hierarchy_id):
+    """
+    Получить названия категории в иерархии
+    """
+    headers = {
+            'Authorization': f'Bearer {access_token}',
+        }
+    response = requests.get(
+        f'https://api.moltin.com/pcm/hierarchies/{hierarchy_id}/children',
+        headers=headers,
+    )
+    response.raise_for_status()
+    response_params = response.json()['data']
+
+    node_names = [node_param['attributes']['name'] for node_param in response_params]
+    return node_names
+
+
+def get_hierarchy_children(access_token, hierarchy_id, node_id):
+    """
+    Получить продукты из заданной категории
+    """
+    headers = {
+            'Authorization': f'Bearer {access_token}',
+        }
+    response = requests.get(
+        f'https://api.moltin.com/pcm/hierarchies/'
+        f'{hierarchy_id}/nodes/{node_id}/products',
+        headers=headers,
+    )
     response.raise_for_status()
     return response.json()
 
