@@ -83,7 +83,7 @@ def webhook():
                     if message_text in get_nodes_names(access_token, hierarchy_id):
                         db.set(f'{sender_id} node_id', messaging_event['postback']['payload'])
                     db.set(f'{sender_id} payload', messaging_event['postback']['payload'])
-                handle_users_reply(sender_id, message_text)
+                handle_users_reply(sender_id, message_text, token_expires)
     return "ok", 200
 
 
@@ -108,8 +108,6 @@ def send_discount(sender_id, message_text):
 
 
 def send_keyboard(sender_id, message_text):
-    global access_token
-
     if not db.get(f'{sender_id} node_id'):
         node_id = node_id_basic
         db.set(f'{sender_id} node_id', node_id)
@@ -264,7 +262,6 @@ def get_keyboard_elements(node_id, access_token, price_list_id):
 
 
 def add_product_to_cart(sender_id, message_text):
-    global access_token
     facebook_id = sender_id
     product_id = db.get(f'{sender_id} payload')
 
@@ -294,13 +291,8 @@ def add_product_to_cart(sender_id, message_text):
         return 'START'
 
 
-def show_cart(sender_id, message_text):
-    global access_token
+def calculate_cart_sum(sender_id):
     facebook_id = sender_id
-
-    products_in_cart_params = get_products_from_cart(access_token=access_token,
-                                                     cart_name=facebook_id)
-
     cart_params = get_cart_params(access_token=access_token,
                                   cart_name=facebook_id)
     cart_sum_num = cart_params["data"]["meta"]["display_price"]["with_tax"]["formatted"]
@@ -311,30 +303,14 @@ def show_cart(sender_id, message_text):
             ИТОГО {cart_sum_num}
             ''').replace("    ", "")
     db.set(f'{sender_id} cart_sum', cart_sum)
+    return cart_sum_num
 
+
+def create_cart_elements(products_in_cart_params):
+    cart_elements = []
     products_prices = get_products_prices(
         access_token,
         price_list_id=price_list_id)
-
-    keyboard_elements = [{"title": 'Корзина',
-                          "image_url": 'https://www.umi-cms.ru/images/cms/data/articles/korzina-internet-magazina.jpg',
-                          "subtitle": f'Ваш заказ на сумму {cart_sum_num}',
-                          "buttons": [
-                              {
-                                  "type": "postback",
-                                  "title": "Самовывоз",
-                                  "payload": "pickup"
-                              },
-                              {
-                                  "type": "postback",
-                                  "title": "Доставка",
-                                  "payload": "delivery"
-                              },
-                              {
-                                  "type": "postback",
-                                  "title": "Основное меню",
-                                  "payload": node_id_basic
-                              }]}]
 
     for product_params in products_in_cart_params['data']:
         product_name = product_params['name']
@@ -376,7 +352,38 @@ def show_cart(sender_id, message_text):
                     "payload": product_delete_id
                 }
             ]}
-        keyboard_elements.append(keyboard_element)
+        cart_elements.append(keyboard_element)
+    return cart_elements
+
+
+def show_cart(sender_id, message_text):
+    facebook_id = sender_id
+    products_in_cart_params = get_products_from_cart(access_token=access_token,
+                                                     cart_name=facebook_id)
+    cart_sum_num = calculate_cart_sum(sender_id)
+
+    keyboard_elements = [{"title": 'Корзина',
+                          "image_url": 'https://www.umi-cms.ru/images/cms/data/articles/korzina-internet-magazina.jpg',
+                          "subtitle": f'Ваш заказ на сумму {cart_sum_num}',
+                          "buttons": [
+                              {
+                                  "type": "postback",
+                                  "title": "Самовывоз",
+                                  "payload": "pickup"
+                              },
+                              {
+                                  "type": "postback",
+                                  "title": "Доставка",
+                                  "payload": "delivery"
+                              },
+                              {
+                                  "type": "postback",
+                                  "title": "Основное меню",
+                                  "payload": node_id_basic
+                              }]}]
+
+    cart_elements = create_cart_elements(products_in_cart_params)
+    keyboard_elements.extend(cart_elements)
 
     params = {"access_token": env.str("PAGE_ACCESS_TOKEN")}
     headers = {"Content-Type": "application/json"}
@@ -405,7 +412,6 @@ def show_cart(sender_id, message_text):
 
 
 def delete_product_from_cart(sender_id, message_text):
-    global access_token
     facebook_id = sender_id
     product_id = db.get(f'{sender_id} payload')
 
@@ -415,9 +421,7 @@ def delete_product_from_cart(sender_id, message_text):
     return show_cart(sender_id, message_text)
 
 
-def handle_users_reply(sender_id, message_text):
-    global token_expires
-    global access_token
+def handle_users_reply(sender_id, message_text, token_expires):
     if not check_token(token_expires):
         access_token, token_expires = get_token(client_id, client_secret)
 
